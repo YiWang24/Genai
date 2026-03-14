@@ -137,6 +137,8 @@ uvicorn app.main:app --reload --port 8000
 Notes:
 - For real Gemini Vision parsing, set `GEMINI_API_KEY` in `backend/.env`.
 - Input image URLs must be reachable by the backend service.
+- Real E2E flow (with Nano Banana image generation):
+  `RUN_REAL_E2E_AGENTIC=1 GEMINI_API_KEY=... NANO_BANANA_MODEL=gemini-2.5-flash-image pytest -q backend/tests/test_e2e_agentic_full_flow.py -s`
 
 Frontend:
 
