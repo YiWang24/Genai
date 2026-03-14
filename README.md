@@ -127,18 +127,16 @@ Backend:
 
 ```bash
 cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+uv sync
 cp .env.example .env
-uvicorn app.main:app --reload --port 8000
+uv run uvicorn app.main:app --reload --port 8000
 ```
 
 Notes:
 - For real Gemini Vision parsing, set `GEMINI_API_KEY` in `backend/.env`.
 - Input image URLs must be reachable by the backend service.
 - Real E2E flow (with Nano Banana image generation):
-  `RUN_REAL_E2E_AGENTIC=1 GEMINI_API_KEY=... NANO_BANANA_MODEL=gemini-2.5-flash-image pytest -q backend/tests/test_e2e_agentic_full_flow.py -s`
+  `cd backend && RUN_REAL_E2E_AGENTIC=1 GEMINI_API_KEY=... NANO_BANANA_MODEL=gemini-2.5-flash-image uv run pytest -q tests/test_e2e_agentic_full_flow.py -s`
 
 Frontend:
 
