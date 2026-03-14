@@ -40,15 +40,17 @@ def test_adk_workflow_falls_back_when_disabled() -> None:
 
 def test_reflection_removes_allergen_from_grocery_gap() -> None:
     request = _sample_request()
+    request.constraints.dietary_restrictions = ["vegetarian"]
     bundle = RecommendationBundle(
         recommendation_id="rec-1",
-        recipe_title="Sample",
+        recipe_title="Chicken Sample",
         steps=["step 1"],
         nutrition_summary=NutritionSummary(calories=650, protein_g=25, carbs_g=40, fat_g=22),
         substitutions=[],
         spoilage_alerts=[],
         grocery_gap=[
             GroceryItem(ingredient="peanut", reason="required by selected recipe"),
+            GroceryItem(ingredient="chicken breast", reason="required by selected recipe"),
             GroceryItem(ingredient="soy sauce", reason="required by selected recipe"),
         ],
     )
@@ -56,5 +58,8 @@ def test_reflection_removes_allergen_from_grocery_gap() -> None:
     reflected, notes = apply_reflection(bundle, request)
 
     assert all(item.ingredient != "peanut" for item in reflected.grocery_gap)
+    assert all("chicken" not in item.ingredient for item in reflected.grocery_gap)
     assert any("allergen" in note.lower() for note in notes)
     assert any("calorie" in note.lower() for note in notes)
+    assert any("vegetarian" in note.lower() or "vegan" in note.lower() for note in notes)
+    assert reflected.spoilage_alerts

@@ -23,14 +23,15 @@ Why this shape for hackathon:
 
 1. Client calls FastAPI endpoint with Cognito bearer token.
 2. API validates token, normalizes payload, persists event.
-3. For heavy operations (image analysis, replan), API schedules `BackgroundTasks` and returns `JobEnvelope`.
-4. Background task executes tool calls and writes results.
-5. Client polls job/recommendation endpoints for final output.
+3. For heavy ingestion operations (image analysis), API schedules `BackgroundTasks` and returns `JobEnvelope`.
+4. Planner and feedback-driven replan execute synchronously for deterministic demo output.
+5. Background task executes tool calls and writes results.
+6. Client polls job/recommendation endpoints for final output.
 
 ### 2.2 Sync + Async Split
 
 - **Sync**: profile/goals CRUD, plan trigger, recommendation read paths.
-- **Async**: fridge scan parse, meal scan parse, receipt parse, complex replan chain.
+- **Async**: fridge scan parse, meal scan parse, receipt parse.
 
 ## 3. Domain Modules
 

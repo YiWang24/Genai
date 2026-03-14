@@ -61,6 +61,11 @@ class PlanRequest(BaseModel):
     user_message: str | None = None
 
 
+class ReplanRequest(BaseModel):
+    constraints: ConstraintSet | None = None
+    user_message: str | None = None
+
+
 class NutritionSummary(BaseModel):
     calories: int
     protein_g: int

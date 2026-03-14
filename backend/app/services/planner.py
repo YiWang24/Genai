@@ -8,13 +8,43 @@ from typing import Any
 import httpx
 
 from app.core.config import get_settings
-from app.schemas.contracts import InventorySnapshot, NutritionSummary
+from app.schemas.contracts import ConstraintSet, InventorySnapshot, NutritionSummary
 
 settings = get_settings()
+
+_ANIMAL_INGREDIENT_KEYWORDS = {
+    "chicken",
+    "beef",
+    "pork",
+    "lamb",
+    "shrimp",
+    "fish",
+    "salmon",
+    "tuna",
+    "bacon",
+    "meat",
+}
+_THEMEALDB_INGREDIENT_IMAGE_BASE = "https://www.themealdb.com/images/ingredients"
 
 
 def _normalize_ingredient_query(ingredient: str) -> str:
     return ingredient.strip().lower().replace(" ", "_")
+
+
+def _build_endpoint_url(endpoint: str) -> str:
+    base = (settings.recipe_api_base_url or "").rstrip("/")
+    api_key = (settings.recipe_api_key or "1").strip() or "1"
+
+    if base.endswith("/api.php"):
+        return f"https://www.themealdb.com/api/json/v1/{api_key}/{endpoint}"
+
+    if "/api/json/v1/" in base:
+        return f"{base}/{endpoint}"
+
+    if base.endswith("/api/json/v1"):
+        return f"{base}/{api_key}/{endpoint}"
+
+    return f"{base}/{endpoint}"
 
 
 def _split_steps(instructions: str) -> list[str]:
@@ -35,7 +65,15 @@ def _extract_ingredient_details(meal: dict[str, Any]) -> list[dict[str, str | No
         ingredient = (meal.get(f"strIngredient{idx}") or "").strip()
         measure = (meal.get(f"strMeasure{idx}") or "").strip()
         if ingredient:
-            details.append({"ingredient": ingredient.lower(), "measure": measure or None})
+            normalized = ingredient.lower()
+            image_name = normalized.replace(" ", "_")
+            details.append(
+                {
+                    "ingredient": normalized,
+                    "measure": measure or None,
+                    "thumbnail_url": f"{_THEMEALDB_INGREDIENT_IMAGE_BASE}/{image_name}-small.png",
+                }
+            )
     return details
 
 
@@ -65,7 +103,8 @@ def _parse_meal_detail(meal: dict[str, Any]) -> dict[str, Any]:
 
 def _fallback_recipe(inventory: InventorySnapshot | None) -> dict[str, Any]:
     first = inventory.items[0].ingredient if inventory and inventory.items else "vegetables"
-    details = [{"ingredient": item.ingredient.lower(), "measure": item.quantity} for item in (inventory.items or [])]
+    inventory_items = inventory.items if inventory and inventory.items else []
+    details = [{"ingredient": item.ingredient.lower(), "measure": item.quantity} for item in inventory_items]
     if not details:
         details = [{"ingredient": first.lower(), "measure": None}]
 
@@ -95,7 +134,7 @@ def _request_json(endpoint: str, params: dict[str, Any]) -> dict[str, Any] | Non
     if not settings.recipe_api_base_url:
         return None
 
-    url = f"{settings.recipe_api_base_url}/{endpoint}"
+    url = _build_endpoint_url(endpoint)
     response = httpx.get(url, params=params, timeout=5.0)
     response.raise_for_status()
     return response.json()
@@ -109,7 +148,94 @@ def _fetch_lookup_meal(meal_id: str) -> dict[str, Any] | None:
     return meals[0] if meals else None
 
 
-def retrieve_recipe_candidates(inventory: InventorySnapshot | None, limit: int = 5) -> list[dict[str, Any]]:
+def _estimate_cook_minutes(recipe: dict[str, Any]) -> int:
+    steps = recipe.get("steps") or []
+    ingredients = recipe.get("ingredients") or []
+    return max(10, len(steps) * 4 + len(ingredients))
+
+
+def _violates_restrictions(recipe: dict[str, Any], constraints: ConstraintSet | None) -> bool:
+    if not constraints:
+        return False
+
+    restrictions = {item.lower() for item in constraints.dietary_restrictions}
+    if "vegetarian" not in restrictions and "vegan" not in restrictions:
+        return False
+
+    ingredients = {ingredient.lower() for ingredient in (recipe.get("ingredients") or [])}
+    for ingredient in ingredients:
+        if any(keyword in ingredient for keyword in _ANIMAL_INGREDIENT_KEYWORDS):
+            return True
+    return False
+
+
+def _violates_allergies(recipe: dict[str, Any], constraints: ConstraintSet | None) -> bool:
+    if not constraints or not constraints.allergies:
+        return False
+    allergies = {item.lower() for item in constraints.allergies}
+    ingredients = {ingredient.lower() for ingredient in (recipe.get("ingredients") or [])}
+    return any(allergy in ingredient for allergy in allergies for ingredient in ingredients)
+
+
+def _score_recipe_candidate(
+    recipe: dict[str, Any],
+    inventory: InventorySnapshot | None,
+    constraints: ConstraintSet | None,
+) -> float:
+    in_stock = {item.ingredient.lower() for item in (inventory.items if inventory else [])}
+    expiring = {
+        item.ingredient.lower()
+        for item in (inventory.items if inventory else [])
+        if item.expires_in_days is not None and item.expires_in_days <= 2
+    }
+
+    recipe_ingredients = [ingredient.lower() for ingredient in (recipe.get("ingredients") or [])]
+    overlap_count = sum(1 for ingredient in recipe_ingredients if ingredient in in_stock)
+    expiring_hits = sum(1 for ingredient in recipe_ingredients if ingredient in expiring)
+    grocery_gap = generate_grocery_gap(recipe, inventory)
+
+    nutrition = calculate_nutrition(recipe, inventory)
+    score = 0.0
+
+    # Inventory and waste optimization
+    score += overlap_count * 3.0
+    score += expiring_hits * 2.5
+    score -= len(grocery_gap) * 1.5
+
+    # Restriction hard-penalty
+    if _violates_restrictions(recipe, constraints):
+        score -= 100.0
+    if _violates_allergies(recipe, constraints):
+        score -= 120.0
+
+    if constraints:
+        if constraints.calories_target is not None:
+            score -= abs(nutrition.calories - constraints.calories_target) / 140.0
+        if constraints.protein_g_target is not None:
+            score -= abs(nutrition.protein_g - constraints.protein_g_target) / 20.0
+        if constraints.carbs_g_target is not None:
+            score -= abs(nutrition.carbs_g - constraints.carbs_g_target) / 30.0
+        if constraints.fat_g_target is not None:
+            score -= abs(nutrition.fat_g - constraints.fat_g_target) / 20.0
+
+        if constraints.max_cook_time_minutes is not None:
+            estimated = _estimate_cook_minutes(recipe)
+            if estimated > constraints.max_cook_time_minutes:
+                score -= (estimated - constraints.max_cook_time_minutes) * 0.7
+
+        if constraints.budget_limit is not None:
+            estimated_gap_cost = len(grocery_gap) * 2.0
+            if estimated_gap_cost > constraints.budget_limit:
+                score -= (estimated_gap_cost - constraints.budget_limit) * 0.8
+
+    return score
+
+
+def retrieve_recipe_candidates(
+    inventory: InventorySnapshot | None,
+    constraints: ConstraintSet | None = None,
+    limit: int = 5,
+) -> list[dict[str, Any]]:
     """Retrieve ordered recipe candidates from TheMealDB free API endpoints."""
 
     if not settings.recipe_api_base_url:
@@ -145,7 +271,19 @@ def retrieve_recipe_candidates(inventory: InventorySnapshot | None, limit: int =
                 break
 
         if parsed:
-            return parsed
+            ranked = sorted(
+                parsed,
+                key=lambda recipe: _score_recipe_candidate(recipe, inventory, constraints),
+                reverse=True,
+            )
+            safe_ranked = [
+                recipe
+                for recipe in ranked
+                if not _violates_allergies(recipe, constraints) and not _violates_restrictions(recipe, constraints)
+            ]
+            if safe_ranked:
+                return safe_ranked[:limit]
+            return ranked[:limit]
 
         if prioritized:
             payload = _request_json("search.php", {"s": prioritized[0].ingredient})
@@ -163,10 +301,13 @@ def retrieve_recipe_candidates(inventory: InventorySnapshot | None, limit: int =
         return []
 
 
-def retrieve_recipe_candidate(inventory: InventorySnapshot | None) -> dict[str, Any]:
+def retrieve_recipe_candidate(
+    inventory: InventorySnapshot | None,
+    constraints: ConstraintSet | None = None,
+) -> dict[str, Any]:
     """Retrieve one recipe candidate with robust fallback."""
 
-    candidates = retrieve_recipe_candidates(inventory, limit=1)
+    candidates = retrieve_recipe_candidates(inventory, constraints=constraints, limit=1)
     if candidates:
         return candidates[0]
     return _fallback_recipe(inventory)

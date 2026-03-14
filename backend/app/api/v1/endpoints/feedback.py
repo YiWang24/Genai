@@ -8,7 +8,10 @@ from app.core.security import get_current_user
 from app.models.feedback_event import FeedbackEvent
 from app.models.recommendation import Recommendation
 from app.schemas.auth import AuthContext
-from app.schemas.contracts import FeedbackPatch, FeedbackResponse
+from app.schemas.contracts import ConstraintSet, FeedbackPatch, FeedbackResponse, PlanRequest
+from app.services.constraint_parser import derive_constraints_from_message
+from app.services.planner_context import build_effective_plan_request
+from app.services.planner_execution import execute_plan_request
 
 router = APIRouter(prefix="/feedback", tags=["feedback"])
 
@@ -37,19 +40,32 @@ async def patch_recommendation_feedback(
 
     replanned_id: str | None = None
     if payload.action == "reject":
-        replanned = Recommendation(
-            user_id=current_user.user_id,
-            recipe_title=f"{rec.recipe_title} (Replan)",
-            steps=rec.steps,
-            nutrition_summary=rec.nutrition_summary,
-            substitutions=rec.substitutions,
-            spoilage_alerts=rec.spoilage_alerts,
-            grocery_gap=rec.grocery_gap,
-            recipe_metadata=rec.recipe_metadata,
+        base_request = build_effective_plan_request(
+            db,
+            PlanRequest(
+                user_id=current_user.user_id,
+                constraints=ConstraintSet(),
+                user_message=payload.message,
+            ),
+            current_user.user_id,
         )
-        db.add(replanned)
-        db.flush()
+        constraints, parser_notes = derive_constraints_from_message(base_request.constraints, payload.message)
+        effective_request = PlanRequest(
+            user_id=current_user.user_id,
+            constraints=constraints,
+            inventory=base_request.inventory,
+            latest_meal_log=base_request.latest_meal_log,
+            user_message=payload.message or base_request.user_message,
+        )
+        replanned = execute_plan_request(
+            db=db,
+            request=effective_request,
+            trigger=f"feedback_reject:{recommendation_id}",
+        )
         replanned_id = replanned.id
+        if parser_notes:
+            event.message = (payload.message or "") + f" | parser_notes={';'.join(parser_notes)}"
+            db.add(event)
 
     db.commit()
 

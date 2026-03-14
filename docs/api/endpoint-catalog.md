@@ -73,7 +73,7 @@ Base prefix: `/api/v1`
 ### `POST /planner/recommendations/{recommendation_id}/replan`
 - Purpose: trigger replan using latest feedback/context.
 - Auth: required.
-- Request: optional override constraints.
+- Request: optional `ReplanRequest` (`constraints`, `user_message`).
 - Response: updated recommendation metadata.
 
 ### `GET /planner/recommendations/latest/{user_id}`
@@ -108,4 +108,5 @@ Base prefix: `/api/v1`
 - Purpose: accept/reject and refine recommendation.
 - Auth: required.
 - Request: `FeedbackPatch`.
+- Behavior: if `action=reject`, backend parses feedback text into constraint overrides and executes a new planner run.
 - Response: `FeedbackResponse` (includes `replanned_recommendation_id` when action is `reject`).

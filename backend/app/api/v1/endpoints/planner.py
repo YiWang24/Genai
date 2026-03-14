@@ -1,19 +1,17 @@
 """Planning endpoints for recommendation generation and retrieval."""
 
-from datetime import datetime, timezone
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.agents.workflow import get_agent_workflow
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.plan_run import PlanRun
 from app.models.recommendation import Recommendation
 from app.schemas.auth import AuthContext
-from app.schemas.contracts import PlanRequest, RecommendationBundle
-from app.services.planner import extract_recipe_metadata, retrieve_recipe_candidate
+from app.schemas.contracts import ConstraintSet, PlanRequest, RecommendationBundle, ReplanRequest
+from app.services.constraint_parser import merge_constraints
+from app.services.planner_execution import execute_plan_request
 from app.services.planner_context import build_effective_plan_request
 from app.services.user_context import ensure_user
 
@@ -43,61 +41,14 @@ async def create_recommendation(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden user scope")
 
     effective_request = build_effective_plan_request(db, request, current_user.user_id)
-
-    run = PlanRun(
-        user_id=current_user.user_id,
-        status="PROCESSING",
-        mode="pending",
-        request_payload=effective_request.model_dump(),
-        trace_notes=[],
-    )
-    db.add(run)
-    db.flush()
-
-    workflow = get_agent_workflow()
-
-    try:
-        recommendation, trace_notes, mode = workflow.recommend(effective_request)
-        selected_recipe = retrieve_recipe_candidate(effective_request.inventory)
-        recipe_metadata = extract_recipe_metadata(selected_recipe)
-
-        rec = Recommendation(
-            user_id=current_user.user_id,
-            recipe_title=recommendation.recipe_title,
-            steps=recommendation.steps,
-            nutrition_summary=recommendation.nutrition_summary.model_dump(),
-            substitutions=recommendation.substitutions,
-            spoilage_alerts=recommendation.spoilage_alerts,
-            grocery_gap=[item.model_dump() for item in recommendation.grocery_gap],
-            recipe_metadata=recipe_metadata,
-        )
-        db.add(rec)
-        db.flush()
-
-        run.status = "COMPLETED"
-        run.mode = mode
-        run.recommendation_id = rec.id
-        run.response_payload = recommendation.model_dump()
-        run.trace_notes = trace_notes
-        run.completed_at = datetime.now(timezone.utc)
-        db.add(run)
-
-        db.commit()
-        db.refresh(rec)
-        return _to_bundle(rec)
-    except Exception:
-        run.status = "FAILED"
-        run.mode = "error"
-        run.trace_notes = ["planner_exception"]
-        run.completed_at = datetime.now(timezone.utc)
-        db.add(run)
-        db.commit()
-        raise
+    rec = execute_plan_request(db=db, request=effective_request, trigger="create_recommendation")
+    return _to_bundle(rec)
 
 
 @router.post("/recommendations/{recommendation_id}/replan", response_model=RecommendationBundle)
 async def replan_recommendation(
-        recommendation_id: str,
+    recommendation_id: str,
+    payload: ReplanRequest | None = None,
     current_user: AuthContext = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> RecommendationBundle:
@@ -107,19 +58,28 @@ async def replan_recommendation(
     if original.user_id != current_user.user_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden recommendation scope")
 
-        replanned = Recommendation(
+    base_request = build_effective_plan_request(
+        db,
+        PlanRequest(
             user_id=current_user.user_id,
-            recipe_title=f"{original.recipe_title} (Replan)",
-            steps=original.steps,
-            nutrition_summary=original.nutrition_summary,
-            substitutions=original.substitutions,
-            spoilage_alerts=original.spoilage_alerts,
-            grocery_gap=original.grocery_gap,
-            recipe_metadata=original.recipe_metadata,
-        )
-    db.add(replanned)
-    db.commit()
-    db.refresh(replanned)
+            constraints=ConstraintSet(),
+            user_message=(payload.user_message if payload else None),
+        ),
+        current_user.user_id,
+    )
+
+    constraints = base_request.constraints
+    if payload and payload.constraints:
+        constraints = merge_constraints(base_request.constraints, payload.constraints)
+
+    effective_request = PlanRequest(
+        user_id=current_user.user_id,
+        constraints=constraints,
+        inventory=base_request.inventory,
+        latest_meal_log=base_request.latest_meal_log,
+        user_message=(payload.user_message if payload and payload.user_message else base_request.user_message),
+    )
+    replanned = execute_plan_request(db=db, request=effective_request, trigger=f"manual_replan:{recommendation_id}")
     return _to_bundle(replanned)
 
 
@@ -149,7 +109,11 @@ async def get_latest_plan_run(
     if user_id != current_user.user_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden user scope")
 
-    run = db.execute(select(PlanRun).where(PlanRun.user_id == user_id).order_by(PlanRun.created_at.desc())).scalars().first()
+    run = (
+        db.execute(select(PlanRun).where(PlanRun.user_id == user_id).order_by(PlanRun.created_at.desc()))
+        .scalars()
+        .first()
+    )
     if not run:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No plan run found")
 

@@ -108,7 +108,7 @@ The planner decides **what** to eat, and retrieval provides **how** to make it w
 
 - **Languages**: Python (backend), Markdown (design/docs), JavaScript/TypeScript planned for frontend
 - **Backend**: FastAPI
-- **Agent framework**: Google ADK (planned integration contract documented)
+- **Agent framework**: Google ADK orchestrator with safe fallback execution
 - **Model provider**: Gemini
 - **Auth**: AWS Cognito
 - **Database**: PostgreSQL + pgvector

@@ -157,6 +157,18 @@ Fields:
 }
 ```
 
+#### `ReplanRequest`
+
+```json
+{
+  "constraints": {
+    "calories_target": 450,
+    "max_cook_time_minutes": 15
+  },
+  "user_message": "Make it vegetarian and lighter"
+}
+```
+
 #### `AgentTrace`
 
 ```json
@@ -264,3 +276,8 @@ Families:
 - Additive changes only for hackathon phase.
 - No breaking changes to named contract types without version bump.
 - Unknown fields in incoming payloads should be ignored unless security-sensitive.
+
+## 5. Notes on Replanning
+
+- `POST /planner/recommendations/{recommendation_id}/replan` accepts optional `ReplanRequest`.
+- `PATCH /feedback/recommendations/{recommendation_id}` with `action=reject` triggers an automatic replan using persisted context + parsed message constraints.

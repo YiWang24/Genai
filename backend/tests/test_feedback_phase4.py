@@ -73,4 +73,24 @@ def test_feedback_reject_creates_replanned_recommendation(client: TestClient) ->
     assert latest.status_code == 200
     latest_body = latest.json()
     assert latest_body["recommendation_id"] == body["replanned_recommendation_id"]
-    assert "Replan" in latest_body["recipe_title"]
+    assert latest_body["recipe_title"]
+
+
+def test_feedback_reject_parses_message_into_constraints_trace(client: TestClient) -> None:
+    user_id = "feedback-3"
+    headers = {"Authorization": "Bearer fake-token", "X-Test-User-Id": user_id}
+
+    created = client.post("/api/v1/planner/recommendations", json=_sample_plan_request(user_id), headers=headers)
+    recommendation_id = created.json()["recommendation_id"]
+
+    patched = client.patch(
+        f"/api/v1/feedback/recommendations/{recommendation_id}",
+        json={"action": "reject", "message": "make it under 450 calories and vegetarian in 15 minutes"},
+        headers=headers,
+    )
+
+    assert patched.status_code == 200
+    run = client.get(f"/api/v1/planner/runs/latest/{user_id}", headers=headers)
+    assert run.status_code == 200
+    trace_notes = run.json()["trace_notes"]
+    assert any("feedback_reject" in note for note in trace_notes)

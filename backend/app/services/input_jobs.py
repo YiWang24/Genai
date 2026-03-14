@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from sqlalchemy import select
 
+from app.agents.tools import analyze_fridge_vision, analyze_meal_vision, parse_receipt_items
 from app.core.database import SessionLocal
 from app.models.input_job import InputJob
 from app.models.meal_log import MealLog
@@ -60,10 +61,8 @@ def process_input_job(job_id: str) -> None:
         result: dict = {"input_type": job.input_type}
 
         if job.input_type == "fridge_scan":
-            items = payload.get("detected_items") or [
-                {"ingredient": "spinach", "quantity": "1 bunch", "expires_in_days": 1},
-                {"ingredient": "tofu", "quantity": "400g", "expires_in_days": 2},
-            ]
+            parsed = analyze_fridge_vision(payload.get("image_url", ""), payload.get("detected_items"))
+            items = parsed.get("ingredients") or []
             for item in items:
                 _upsert_pantry_item(
                     db=db,
@@ -76,13 +75,21 @@ def process_input_job(job_id: str) -> None:
             result["updated_items"] = len(items)
 
         elif job.input_type == "meal_scan":
+            parsed = analyze_meal_vision(
+                payload.get("image_url", ""),
+                payload.get("meal_name"),
+                payload.get("calories"),
+                payload.get("protein_g"),
+                payload.get("carbs_g"),
+                payload.get("fat_g"),
+            )
             meal = MealLog(
                 user_id=job.user_id,
-                meal_name=payload.get("meal_name") or "recognized meal",
-                calories=payload.get("calories") or 520,
-                protein_g=payload.get("protein_g") or 28,
-                carbs_g=payload.get("carbs_g") or 46,
-                fat_g=payload.get("fat_g") or 20,
+                meal_name=parsed.get("meal_name") or "recognized meal",
+                calories=parsed.get("calories") or 520,
+                protein_g=parsed.get("protein_g") or 28,
+                carbs_g=parsed.get("carbs_g") or 46,
+                fat_g=parsed.get("fat_g") or 20,
             )
             db.add(meal)
             db.flush()
@@ -90,10 +97,8 @@ def process_input_job(job_id: str) -> None:
             result["meal_log_id"] = meal.id
 
         elif job.input_type == "receipt_scan":
-            items = payload.get("items") or [
-                {"ingredient": "tomato", "quantity": "4", "expires_in_days": 4},
-                {"ingredient": "onion", "quantity": "2", "expires_in_days": 7},
-            ]
+            parsed = parse_receipt_items(payload.get("image_url", ""), payload.get("items"))
+            items = parsed.get("items") or []
             receipt = ReceiptEvent(user_id=job.user_id, image_url=payload.get("image_url", ""), parsed_items=items)
             db.add(receipt)
             for item in items:

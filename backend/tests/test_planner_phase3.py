@@ -66,3 +66,24 @@ def test_planner_detail_views(client: TestClient) -> None:
     assert "ingredient_details" in recipe.json()["recipe_metadata"]
     assert nutrition.json()["calories"] >= 1
     assert isinstance(gap.json(), list)
+
+
+def test_planner_replan_with_override_payload(client: TestClient) -> None:
+    user_id = "planner-3"
+    headers = {"Authorization": "Bearer fake-token", "X-Test-User-Id": user_id}
+
+    created = client.post("/api/v1/planner/recommendations", json=_sample_plan_request(user_id), headers=headers)
+    original_id = created.json()["recommendation_id"]
+
+    replanned = client.post(
+        f"/api/v1/planner/recommendations/{original_id}/replan",
+        json={
+            "constraints": {"calories_target": 420, "max_cook_time_minutes": 15},
+            "user_message": "Make it lower calories and quicker",
+        },
+        headers=headers,
+    )
+    assert replanned.status_code == 200
+    body = replanned.json()
+    assert body["recommendation_id"] != original_id
+    assert body["recipe_title"]

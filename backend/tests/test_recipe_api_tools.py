@@ -119,3 +119,68 @@ def test_retrieve_recipe_candidate_falls_back_on_api_errors(monkeypatch) -> None
 
     assert recipe["recipe_title"].startswith("Quick")
     assert recipe["ingredient_details"]
+
+
+def test_retrieve_recipe_candidates_ranks_by_calorie_target(monkeypatch) -> None:
+    planner.settings.recipe_api_base_url = "https://www.themealdb.com/api/json/v1/1"
+
+    def fake_get(url: str, params: dict | None = None, timeout: float = 5.0):  # noqa: ARG001
+        if url.endswith("/filter.php"):
+            return _FakeResponse({"meals": [{"idMeal": "2001"}, {"idMeal": "2002"}]})
+
+        if url.endswith("/lookup.php"):
+            meal_id = params["i"]
+            if meal_id == "2001":
+                # More ingredients => higher heuristic calories
+                return _FakeResponse(
+                    {
+                        "meals": [
+                            {
+                                "idMeal": "2001",
+                                "strMeal": "High Calorie Candidate",
+                                "strCategory": "Vegan",
+                                "strArea": "Global",
+                                "strInstructions": "Cook. Serve.",
+                                "strIngredient1": "spinach",
+                                "strMeasure1": "100g",
+                                "strIngredient2": "tofu",
+                                "strMeasure2": "200g",
+                                "strIngredient3": "rice",
+                                "strMeasure3": "100g",
+                                "strIngredient4": "oil",
+                                "strMeasure4": "1 tbsp",
+                            }
+                        ]
+                    }
+                )
+            return _FakeResponse(
+                {
+                    "meals": [
+                        {
+                            "idMeal": "2002",
+                            "strMeal": "Low Calorie Candidate",
+                            "strCategory": "Vegan",
+                            "strArea": "Global",
+                            "strInstructions": "Cook. Serve.",
+                            "strIngredient1": "spinach",
+                            "strMeasure1": "100g",
+                        }
+                    ]
+                }
+            )
+
+        raise AssertionError(f"Unexpected URL: {url}")
+
+    monkeypatch.setattr(planner.httpx, "get", fake_get)
+
+    inventory = InventorySnapshot(
+        user_id="u1",
+        items=[InventoryItem(ingredient="spinach", quantity="1 bunch", expires_in_days=1)],
+    )
+
+    from app.schemas.contracts import ConstraintSet
+
+    candidates = planner.retrieve_recipe_candidates(inventory, constraints=ConstraintSet(calories_target=380), limit=2)
+
+    assert len(candidates) == 2
+    assert candidates[0]["recipe_id"] == "2002"

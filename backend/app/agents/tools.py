@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.schemas.contracts import InventorySnapshot
+from app.schemas.contracts import ConstraintSet, InventorySnapshot
 from app.services.planner import (
     calculate_nutrition,
     generate_grocery_gap,
@@ -53,14 +53,23 @@ def parse_receipt_items(image_url: str, items: list[dict[str, Any]] | None = Non
     return {"image_url": image_url, "items": parsed}
 
 
-def retrieve_recipe_candidates(inventory: dict[str, Any] | None = None, limit: int = 5) -> dict[str, Any]:
+def retrieve_recipe_candidates(
+    inventory: dict[str, Any] | None = None,
+    constraints: dict[str, Any] | None = None,
+    limit: int = 5,
+) -> dict[str, Any]:
     """Get recipe candidates from TheMealDB and return selected + ranked list."""
 
     snapshot = None
     if inventory:
         snapshot = InventorySnapshot.model_validate(inventory)
-    candidates = retrieve_recipe_candidates_service(snapshot, limit=limit)
-    selected = candidates[0] if candidates else retrieve_recipe_candidate(snapshot)
+
+    constraint_obj = None
+    if constraints:
+        constraint_obj = ConstraintSet.model_validate(constraints)
+
+    candidates = retrieve_recipe_candidates_service(snapshot, constraints=constraint_obj, limit=limit)
+    selected = candidates[0] if candidates else retrieve_recipe_candidate(snapshot, constraints=constraint_obj)
     return {"selected": selected, "candidates": candidates}
 
 

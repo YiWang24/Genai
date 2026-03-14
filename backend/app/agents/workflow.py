@@ -168,7 +168,7 @@ class AdkPlannerWorkflow:
 
     @staticmethod
     def _fallback_bundle(request: PlanRequest) -> RecommendationBundle:
-        recipe = retrieve_recipe_candidate(request.inventory)
+        recipe = retrieve_recipe_candidate(request.inventory, constraints=request.constraints)
         nutrition = calculate_nutrition(recipe, request.inventory)
         grocery_gap = generate_grocery_gap(recipe, request.inventory)
         spoilage_alerts = []

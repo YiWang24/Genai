@@ -174,11 +174,18 @@ Hard checks before returning recommendation:
 3. spoilage-priority usage (when expiring ingredients exist)
 4. ingredient availability with explicit grocery gap
 5. plan feasibility under max cook-time
+6. remove non-compliant grocery items (allergy + vegetarian/vegan hard filters)
+7. enforce spoilage-priority reminders for expiring pantry items
 
 If validation fails:
 
 - retry once with stricter filters
 - if still failing, return safe fallback plan and explicit unmet-constraint explanation
+
+Feedback-driven replan:
+
+- reject feedback messages are parsed into structured overrides (for example: calories, time, vegetarian/vegan, allergy hints)
+- parsed constraints are merged with persisted goals before rerunning planner
 
 ## 6. Prompting and Guardrails
 
