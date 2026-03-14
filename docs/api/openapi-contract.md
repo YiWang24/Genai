@@ -223,6 +223,18 @@ Fields:
 }
 ```
 
+#### `FeedbackResponse`
+
+```json
+{
+  "event_id": 88,
+  "recommendation_id": "c3b3d1f8-0ca2-45e2-bdf3-3fe2e2777f64",
+  "action": "reject",
+  "message": "lower calories please",
+  "replanned_recommendation_id": "8fdfd79d-cf22-45c0-afde-87a1d1c53a99"
+}
+```
+
 ## 2. Endpoint Families
 
 Detailed endpoint list is in `docs/api/endpoint-catalog.md`.

@@ -133,3 +133,11 @@ class ChatMessageResponse(BaseModel):
     event_id: int
     user_id: str
     message: str
+
+
+class FeedbackResponse(BaseModel):
+    event_id: int
+    recommendation_id: str
+    action: Literal["accept", "reject"]
+    message: str | None = None
+    replanned_recommendation_id: str | None = None

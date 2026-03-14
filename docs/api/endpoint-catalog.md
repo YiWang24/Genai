@@ -101,4 +101,4 @@ Base prefix: `/api/v1`
 - Purpose: accept/reject and refine recommendation.
 - Auth: required.
 - Request: `FeedbackPatch`.
-- Response: feedback event metadata and replan hint.
+- Response: `FeedbackResponse` (includes `replanned_recommendation_id` when action is `reject`).

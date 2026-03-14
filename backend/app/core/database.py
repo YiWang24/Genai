@@ -46,6 +46,7 @@ def init_db() -> None:
 
     from app.models import (  # noqa: F401
         chat_message,
+        feedback_event,
         goal,
         input_job,
         meal_log,
