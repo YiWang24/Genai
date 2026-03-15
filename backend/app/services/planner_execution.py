@@ -157,7 +157,8 @@ async def execute_plan_request(
         trace_notes=[f"trigger:{trigger}"],
     )
     db.add(run)
-    db.flush()
+    db.commit()
+    db.refresh(run)
 
     try:
         workflow = get_railtracks_workflow()

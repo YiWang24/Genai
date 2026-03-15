@@ -1,6 +1,11 @@
 """Input ingestion endpoints for fridge, meal, receipt, and chat context."""
 
+import base64
+import binascii
 from datetime import datetime, time, timezone
+from pathlib import Path
+import re
+from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy import select
@@ -36,6 +41,57 @@ from app.services.recommendation_mapper import recommendation_to_bundle
 from app.services.user_context import ensure_user
 
 router = APIRouter(prefix="/inputs", tags=["inputs"])
+_DATA_URL_RE = re.compile(r"^data:(?P<mime>[^;]+);base64,(?P<data>.+)$", re.DOTALL)
+_UPLOAD_ROOT = Path("./data/uploads")
+
+
+def _persist_data_url_image(image_ref: str) -> tuple[str, str] | None:
+    """Persist inline base64 image data to local file and return (path, mime)."""
+
+    match = _DATA_URL_RE.match(image_ref.strip())
+    if not match:
+        return None
+
+    mime = match.group("mime").strip().lower()
+    encoded = match.group("data").strip()
+    try:
+        image_bytes = base64.b64decode(encoded)
+    except (ValueError, binascii.Error):
+        return None
+    if not image_bytes:
+        return None
+
+    ext = ".jpg"
+    if "png" in mime:
+        ext = ".png"
+    elif "webp" in mime:
+        ext = ".webp"
+    elif "gif" in mime:
+        ext = ".gif"
+
+    _UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
+    file_path = _UPLOAD_ROOT / f"{uuid4()}{ext}"
+    file_path.write_bytes(image_bytes)
+    return str(file_path), mime
+
+
+def _prepare_payload_for_storage(payload: dict) -> dict:
+    """Avoid persisting multi-MB data URLs directly into SQLite JSON payloads."""
+
+    normalized = dict(payload)
+    image_ref = normalized.get("image_url")
+    if not isinstance(image_ref, str) or not image_ref.startswith("data:"):
+        return normalized
+
+    persisted = _persist_data_url_image(image_ref)
+    if not persisted:
+        return normalized
+
+    image_path, mime = persisted
+    normalized["image_url"] = image_path
+    normalized["image_mime"] = mime
+    normalized["image_source"] = "local_file"
+    return normalized
 
 
 def _normalize_ingredient_name(value: str | None) -> str:
@@ -91,7 +147,8 @@ def _create_input_job(
     payload: dict,
     background_tasks: BackgroundTasks,
 ) -> JobEnvelope:
-    job = InputJob(user_id=user_id, input_type=input_type, status=JobStatus.PENDING.value, payload=payload)
+    stored_payload = _prepare_payload_for_storage(payload)
+    job = InputJob(user_id=user_id, input_type=input_type, status=JobStatus.PENDING.value, payload=stored_payload)
     db.add(job)
     db.commit()
     db.refresh(job)
