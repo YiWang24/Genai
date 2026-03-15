@@ -55,7 +55,7 @@ class Base(DeclarativeBase):
 _ENGINE_KWARGS: dict = {"pool_pre_ping": True}
 
 if IS_SQLITE:
-    _ENGINE_KWARGS["connect_args"] = {"check_same_thread": False}
+    _ENGINE_KWARGS["connect_args"] = {"check_same_thread": False, "timeout": 30}
     if IS_SQLITE_MEMORY:
         _ENGINE_KWARGS["poolclass"] = StaticPool
 
@@ -63,6 +63,20 @@ engine = create_engine(DATABASE_URL, **_ENGINE_KWARGS)
 SessionLocal = sessionmaker(
     bind=engine, autoflush=False, autocommit=False, class_=Session
 )
+
+
+@event.listens_for(engine, "connect")
+def _configure_sqlite_connection(dbapi_connection, connection_record) -> None:  # noqa: ANN001, ARG001
+    """Tune SQLite for local write contention (file mode) and retries."""
+
+    if not IS_SQLITE:
+        return
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA busy_timeout=30000")
+    if not IS_SQLITE_MEMORY:
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+    cursor.close()
 
 
 def _engine_sqlite_connection():

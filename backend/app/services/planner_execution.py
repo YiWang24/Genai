@@ -8,10 +8,11 @@ from sqlalchemy.orm import Session
 
 from app.agents.io_contracts import AgentPlanInputV1
 from app.agents.rt_workflow import get_railtracks_workflow
-from app.agents.tools import decompose_cooking_workflow, schedule_proactive_prep, sync_to_calendar
+from app.agents.tools import decompose_cooking_workflow, schedule_proactive_prep
 from app.models.plan_run import PlanRun
 from app.models.recommendation import Recommendation
 from app.schemas.contracts import (
+    CookingDagTask,
     DecisionBlock,
     ExecutionPlanBlock,
     GroceryItem,
@@ -19,9 +20,11 @@ from app.schemas.contracts import (
     MealPlanBlock,
     MemoryUpdatesBlock,
     PlanRequest,
+    ProactivePrepWindow,
     ReflectionBlock,
     NutritionSummary,
 )
+from app.services.execution_planning import persist_execution_plan
 from app.services.user_memory import (
     count_expiring_items_used,
     infer_used_inventory,
@@ -196,13 +199,15 @@ async def execute_plan_request(
             task_list=dag_tasks_payload,
             user_availability={"anchor_iso": datetime.now(timezone.utc).isoformat()},
         )
-        execution_payload = sync_to_calendar(
+        execution_plan = persist_execution_plan(
+            db=db,
             user_id=request.user_id,
             recommendation_id=rec.id,
             recipe_title=recommendation.decision.recipe_title,
-            cooking_dag_tasks=dag_tasks_payload,
-            proactive_prep_windows=prep_windows_payload,
+            tasks=[CookingDagTask.model_validate(item) for item in dag_tasks_payload],
+            prep_windows=[ProactivePrepWindow.model_validate(item) for item in prep_windows_payload],
         )
+        execution_payload = execution_plan.model_dump(mode="json")
         recommendation.execution_plan = ExecutionPlanBlock.model_validate(execution_payload)
 
         used_inventory = infer_used_inventory(
