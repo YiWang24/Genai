@@ -1,4 +1,4 @@
-# Eco-Health Agentic Dietitian
+# SmartDiet Copilot - Agentic Dietitian
 
 An **agentic multimodal AI dietitian assistant** that helps users eat healthier, reduce food waste, and lower grocery spending.
 
