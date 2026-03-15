@@ -2,6 +2,9 @@
 
 An **agentic multimodal AI dietitian assistant** that helps users eat healthier, reduce food waste, and lower grocery spending.
 
+For the polished hackathon narrative (inspiration, what it does, architecture, stack, challenges, and roadmap), see:
+- [`docs/HACKATHON_SUBMISSION.md`](docs/HACKATHON_SUBMISSION.md)
+
 ## Project Inspiration
 
 Many people want to eat healthier, waste less food, and reduce their environmental footprint.  
@@ -181,5 +184,4 @@ If you do not have Cognito configured in local dev, backend auto-enables develop
 - **Calendar integrations:** bi-directional sync for meal prep scheduling and grocery planning.
 - **Shopping integration:** automatically order missing ingredients or suggest local alternatives.
 - **Social features:** share meal plans and sustainability progress with friends.
-
 

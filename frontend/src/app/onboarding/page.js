@@ -225,6 +225,19 @@ export default function OnboardingPage() {
 
   const canSubmit = preview.ready && !saving && !loading;
   const selectedGoal = GOAL_OPTIONS.find((item) => item.key === goalType) || GOAL_OPTIONS[0];
+  const requiredMissing = {
+    age: !String(form.age ?? "").trim(),
+    biological_sex: !String(form.biological_sex ?? "").trim(),
+    height_cm: !String(form.height_cm ?? "").trim(),
+    weight_kg: !String(form.weight_kg ?? "").trim(),
+  };
+  const missingRequiredLabels = [
+    requiredMissing.age ? "Age" : null,
+    requiredMissing.biological_sex ? "Sex at birth" : null,
+    requiredMissing.height_cm ? "Height" : null,
+    requiredMissing.weight_kg ? "Weight" : null,
+  ].filter(Boolean);
+  const hasMissingRequired = missingRequiredLabels.length > 0;
 
   function setField(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -245,7 +258,11 @@ export default function OnboardingPage() {
     if (saving) return;
 
     if (!preview.ready) {
-      setError("Age, sex at birth, height, and weight are required for a scientific target.");
+      setError(
+        hasMissingRequired
+          ? `Missing required fields: ${missingRequiredLabels.join(", ")}.`
+          : "Age, sex at birth, height, and weight are required for a scientific target.",
+      );
       return;
     }
 
@@ -352,6 +369,33 @@ export default function OnboardingPage() {
                     Age, sex at birth, height, and weight are required because the daily target is calculated from an
                     evidence-based energy estimate, not a static template.
                   </p>
+                  <div
+                    className={`mt-2 rounded-2xl border px-4 py-3 ${
+                      hasMissingRequired
+                        ? "border-amber-300 bg-amber-50 text-amber-800"
+                        : "border-emerald-200 bg-emerald-50 text-emerald-800"
+                    }`}
+                  >
+                    {hasMissingRequired ? (
+                      <div className="space-y-2">
+                        <p className="text-sm font-semibold">
+                          Missing required inputs: {missingRequiredLabels.join(", ")}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {missingRequiredLabels.map((label) => (
+                            <span
+                              key={label}
+                              className="rounded-full border border-amber-300 bg-white px-2.5 py-1 text-xs font-bold text-amber-800"
+                            >
+                              {label}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm font-semibold">All required inputs are complete.</p>
+                    )}
+                  </div>
                 </div>
 
                 <div className="mt-6 grid gap-5 md:grid-cols-2">
@@ -364,28 +408,48 @@ export default function OnboardingPage() {
                       value={form.age}
                       onChange={(e) => setField("age", e.target.value)}
                       placeholder="e.g. 29"
-                      className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 transition focus:border-emerald-400 focus:bg-white"
+                      aria-invalid={requiredMissing.age}
+                      className={`rounded-2xl border px-4 py-3 text-slate-900 transition focus:border-emerald-400 focus:bg-white ${
+                        requiredMissing.age
+                          ? "border-amber-300 bg-amber-50/70"
+                          : "border-slate-200 bg-slate-50"
+                      }`}
                     />
+                    {requiredMissing.age && (
+                      <p className="text-xs font-semibold text-amber-700">Age is required.</p>
+                    )}
                   </label>
 
                   <div className="flex flex-col gap-2">
                     <span className="text-sm font-semibold text-slate-700">Sex at birth *</span>
-                    <div className="grid grid-cols-2 gap-3">
-                      {SEX_OPTIONS.map((option) => (
-                        <button
-                          key={option.value}
-                          type="button"
-                          onClick={() => setField("biological_sex", option.value)}
-                          className={`rounded-2xl border px-4 py-3 text-left font-semibold transition ${
-                            form.biological_sex === option.value
-                              ? "border-emerald-500 bg-emerald-500 text-white shadow-[0_16px_36px_-26px_rgba(34,197,94,0.9)]"
-                              : "border-slate-200 bg-slate-50 text-slate-700 hover:border-emerald-300 hover:bg-white"
-                          }`}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
+                    <div
+                      className={`rounded-2xl border p-2 ${
+                        requiredMissing.biological_sex
+                          ? "border-amber-300 bg-amber-50/40"
+                          : "border-transparent"
+                      }`}
+                    >
+                      <div className="grid grid-cols-2 gap-3">
+                        {SEX_OPTIONS.map((option) => (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => setField("biological_sex", option.value)}
+                            aria-pressed={form.biological_sex === option.value}
+                            className={`rounded-2xl border px-4 py-3 text-left font-semibold transition ${
+                              form.biological_sex === option.value
+                                ? "border-emerald-500 bg-emerald-500 text-white shadow-[0_16px_36px_-26px_rgba(34,197,94,0.9)]"
+                                : "border-slate-200 bg-slate-50 text-slate-700 hover:border-emerald-300 hover:bg-white"
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
+                    {requiredMissing.biological_sex && (
+                      <p className="text-xs font-semibold text-amber-700">Please select sex at birth.</p>
+                    )}
                   </div>
 
                   <label className="flex flex-col gap-2">
@@ -397,8 +461,16 @@ export default function OnboardingPage() {
                       value={form.height_cm}
                       onChange={(e) => setField("height_cm", e.target.value)}
                       placeholder="175"
-                      className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 transition focus:border-emerald-400 focus:bg-white"
+                      aria-invalid={requiredMissing.height_cm}
+                      className={`rounded-2xl border px-4 py-3 text-slate-900 transition focus:border-emerald-400 focus:bg-white ${
+                        requiredMissing.height_cm
+                          ? "border-amber-300 bg-amber-50/70"
+                          : "border-slate-200 bg-slate-50"
+                      }`}
                     />
+                    {requiredMissing.height_cm && (
+                      <p className="text-xs font-semibold text-amber-700">Height is required.</p>
+                    )}
                   </label>
 
                   <label className="flex flex-col gap-2">
@@ -410,8 +482,16 @@ export default function OnboardingPage() {
                       value={form.weight_kg}
                       onChange={(e) => setField("weight_kg", e.target.value)}
                       placeholder="72"
-                      className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 transition focus:border-emerald-400 focus:bg-white"
+                      aria-invalid={requiredMissing.weight_kg}
+                      className={`rounded-2xl border px-4 py-3 text-slate-900 transition focus:border-emerald-400 focus:bg-white ${
+                        requiredMissing.weight_kg
+                          ? "border-amber-300 bg-amber-50/70"
+                          : "border-slate-200 bg-slate-50"
+                      }`}
                     />
+                    {requiredMissing.weight_kg && (
+                      <p className="text-xs font-semibold text-amber-700">Weight is required.</p>
+                    )}
                   </label>
                 </div>
 
@@ -566,6 +646,11 @@ export default function OnboardingPage() {
                       This saves both your body profile and your current nutrition constraints, so the planner,
                       dashboard, and recipes all work from the same target.
                     </p>
+                    {!preview.ready && (
+                      <p className="mt-3 text-sm font-semibold text-amber-100">
+                        Complete required fields first: {missingRequiredLabels.join(", ")}.
+                      </p>
+                    )}
                   </div>
                   <button
                     type="submit"
