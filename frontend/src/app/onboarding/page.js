@@ -109,8 +109,8 @@ function formatList(values, options) {
 
 function PreviewMetric({ label, value, accentClass = "text-slate-900", suffix = "" }) {
   return (
-    <div className="rounded-2xl border border-white/70 bg-white/80 px-4 py-3 shadow-[0_18px_45px_-36px_rgba(15,23,42,0.8)] backdrop-blur">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">{label}</p>
+    <div className="rounded-2xl border border-white/30 bg-white/20 px-4 py-3 backdrop-blur">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/70">{label}</p>
       <p className={`mt-2 text-2xl font-black tracking-tight ${accentClass}`}>
         {value}
         {suffix}
@@ -324,7 +324,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(89,196,120,0.18),_transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(56,189,248,0.12),_transparent_28%),linear-gradient(180deg,_#f7fbf6_0%,_#f8fafc_50%,_#f1f5f9_100%)]">
+    <div className="min-h-screen bg-[linear-gradient(160deg,_#ecfdf5_0%,_#f7fdf9_40%,_#f0fdf4_100%)]">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="relative overflow-hidden rounded-[34px] border border-white/70 bg-white/70 px-6 py-8 shadow-[0_30px_120px_-55px_rgba(15,23,42,0.4)] backdrop-blur xl:px-10">
           <div className="pointer-events-none absolute -left-24 top-8 h-56 w-56 rounded-full bg-emerald-200/45 blur-3xl" />
@@ -361,38 +361,38 @@ export default function OnboardingPage() {
               </div>
             </div>
 
-            <div className="w-full max-w-md rounded-[28px] border border-emerald-100 bg-slate-950 px-6 py-5 text-white shadow-[0_24px_64px_-34px_rgba(15,23,42,0.9)]">
+            <div className="w-full max-w-md rounded-[28px] border border-emerald-200/60 bg-gradient-to-br from-emerald-600 to-teal-600 px-6 py-5 text-white shadow-[0_24px_64px_-34px_rgba(16,185,129,0.5)]">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-300/80">
+                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-100/80">
                     Daily target preview
                   </p>
                   <p className="mt-2 text-3xl font-black tracking-tight">
                     {preview.ready ? preview.caloriesTarget : "--"} kcal
                   </p>
                 </div>
-                <div className="rounded-2xl bg-white/10 px-3 py-2 text-right">
-                  <p className="text-[11px] uppercase tracking-[0.2em] text-slate-300">Goal shift</p>
+                <div className="rounded-2xl bg-white/20 px-3 py-2 text-right">
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-white/70">Goal shift</p>
                   <p className="mt-1 text-lg font-bold">
                     {preview.ready ? `${preview.calorieDelta > 0 ? "+" : ""}${preview.calorieDelta}` : "--"}
                   </p>
                 </div>
               </div>
               <div className="mt-5 grid grid-cols-3 gap-3">
-                <div className="rounded-2xl bg-white/8 px-3 py-3">
-                  <p className="text-[11px] uppercase tracking-[0.22em] text-slate-400">Protein</p>
+                <div className="rounded-2xl bg-white/20 px-3 py-3">
+                  <p className="text-[11px] uppercase tracking-[0.22em] text-white/70">Protein</p>
                   <p className="mt-2 text-xl font-black">{preview.ready ? preview.proteinGTarget : "--"}g</p>
                 </div>
-                <div className="rounded-2xl bg-white/8 px-3 py-3">
-                  <p className="text-[11px] uppercase tracking-[0.22em] text-slate-400">Carbs</p>
+                <div className="rounded-2xl bg-white/20 px-3 py-3">
+                  <p className="text-[11px] uppercase tracking-[0.22em] text-white/70">Carbs</p>
                   <p className="mt-2 text-xl font-black">{preview.ready ? preview.carbsGTarget : "--"}g</p>
                 </div>
-                <div className="rounded-2xl bg-white/8 px-3 py-3">
-                  <p className="text-[11px] uppercase tracking-[0.22em] text-slate-400">Fat</p>
+                <div className="rounded-2xl bg-white/20 px-3 py-3">
+                  <p className="text-[11px] uppercase tracking-[0.22em] text-white/70">Fat</p>
                   <p className="mt-2 text-xl font-black">{preview.ready ? preview.fatGTarget : "--"}g</p>
                 </div>
               </div>
-              <p className="mt-5 text-sm leading-6 text-slate-300">{readinessCopy}</p>
+              <p className="mt-5 text-sm leading-6 text-emerald-100/90">{readinessCopy}</p>
             </div>
           </div>
         </div>
@@ -622,12 +622,12 @@ export default function OnboardingPage() {
                 </div>
               </section>
 
-              <section className="rounded-[30px] border border-white/80 bg-slate-950 p-6 text-white shadow-[0_24px_72px_-40px_rgba(15,23,42,0.95)] sm:p-8">
+              <section className="rounded-[30px] border border-emerald-200/50 bg-gradient-to-br from-emerald-600 to-teal-600 p-6 text-white shadow-[0_24px_72px_-40px_rgba(16,185,129,0.5)] sm:p-8">
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                   <div className="max-w-2xl">
-                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-300/80">Ready to save</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-100/80">Ready to save</p>
                     <h2 className="mt-2 text-3xl font-black tracking-tight">Lock in your personalized nutrition profile.</h2>
-                    <p className="mt-3 text-sm leading-7 text-slate-300">
+                    <p className="mt-3 text-sm leading-7 text-white/80">
                       This saves both your body profile and your current nutrition constraints, so the planner,
                       dashboard, and recipes all work from the same target.
                     </p>
@@ -635,7 +635,7 @@ export default function OnboardingPage() {
                   <button
                     type="submit"
                     disabled={!canSubmit}
-                    className="inline-flex min-w-[240px] items-center justify-center rounded-2xl bg-emerald-500 px-8 py-4 text-lg font-black text-white shadow-[0_22px_48px_-24px_rgba(34,197,94,0.9)] transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-white/15 disabled:text-slate-400"
+                    className="inline-flex min-w-[240px] items-center justify-center rounded-2xl bg-white px-8 py-4 text-lg font-black text-emerald-700 shadow-[0_16px_36px_-20px_rgba(0,0,0,0.25)] transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:bg-white/30 disabled:text-white/50"
                   >
                     {saving ? "Saving..." : loading ? "Loading..." : "Create My Nutrition Profile"}
                   </button>
@@ -652,19 +652,19 @@ export default function OnboardingPage() {
 
           <aside className="lg:sticky lg:top-6 lg:self-start">
             <div className="overflow-hidden rounded-[32px] border border-white/80 bg-white/85 p-6 shadow-[0_24px_80px_-48px_rgba(15,23,42,0.8)] backdrop-blur sm:p-7">
-              <div className="rounded-[28px] bg-[linear-gradient(135deg,#0f172a_0%,#111827_55%,#14532d_100%)] p-5 text-white shadow-[0_26px_60px_-38px_rgba(15,23,42,0.95)]">
+              <div className="rounded-[28px] bg-gradient-to-br from-emerald-600 to-teal-600 p-5 text-white shadow-[0_26px_60px_-38px_rgba(16,185,129,0.5)]">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-200/80">
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-100/80">
                       Live nutrition preview
                     </p>
                     <p className="mt-2 text-4xl font-black tracking-tight">
                       {preview.ready ? preview.caloriesTarget : "--"}
                     </p>
-                    <p className="mt-1 text-sm text-slate-300">Daily calories</p>
+                    <p className="mt-1 text-sm text-white/70">Daily calories</p>
                   </div>
-                  <div className="rounded-2xl bg-white/10 px-3 py-2">
-                    <p className="text-[11px] uppercase tracking-[0.22em] text-slate-300">Maintenance</p>
+                  <div className="rounded-2xl bg-white/20 px-3 py-2">
+                    <p className="text-[11px] uppercase tracking-[0.22em] text-white/70">Maintenance</p>
                     <p className="mt-1 text-lg font-bold">{preview.ready ? preview.maintenanceCalories : "--"} kcal</p>
                   </div>
                 </div>
@@ -675,21 +675,21 @@ export default function OnboardingPage() {
                   <PreviewMetric label="Fat" value={preview.ready ? preview.fatGTarget : "--"} suffix="g" accentClass="text-white" />
                 </div>
 
-                <div className="mt-5 rounded-2xl border border-white/10 bg-white/6 px-4 py-4">
+                <div className="mt-5 rounded-2xl border border-white/20 bg-white/15 px-4 py-4">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-300">Goal adjustment</span>
+                    <span className="text-white/80">Goal adjustment</span>
                     <span className="font-bold text-white">
                       {preview.ready ? `${preview.calorieDelta > 0 ? "+" : ""}${preview.calorieDelta} kcal/day` : "--"}
                     </span>
                   </div>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/20">
                     <div
                       className={`h-full rounded-full ${
                         goalType === "gain_muscle"
-                          ? "bg-sky-400"
+                          ? "bg-sky-300"
                           : goalType === "maintenance"
                             ? "bg-white"
-                            : "bg-emerald-400"
+                            : "bg-emerald-200"
                       }`}
                       style={{ width: preview.ready ? `${Math.min(100, Math.max(18, Math.abs(preview.calorieDelta) / 6))}%` : "18%" }}
                     />
