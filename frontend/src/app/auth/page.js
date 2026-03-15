@@ -1,45 +1,30 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/ui/Icon";
 import {
-  confirmEmailCode,
   getCurrentUser,
   hasAuthSession,
-  loginWithEmail,
-  registerWithEmail,
-  resendEmailCode,
+  requestEmailCode,
+  saveAuthSession,
+  verifyEmailCode,
 } from "@/lib/api";
 import { ROUTES } from "@/lib/constants";
 
-const MODE_REGISTER = "register";
-const MODE_VERIFY = "verify";
-const MODE_LOGIN = "login";
-
-function resolveMode(mode) {
-  if (mode === MODE_REGISTER || mode === MODE_VERIFY || mode === MODE_LOGIN) {
-    return mode;
-  }
-  return MODE_LOGIN;
-}
+const STEP_EMAIL = "email";
+const STEP_CODE = "code";
 
 export default function AuthPage() {
   const router = useRouter();
-  const [mode, setMode] = useState(MODE_LOGIN);
+  const [step, setStep] = useState(STEP_EMAIL);
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
+  const [session, setSession] = useState("");
   const [loading, setLoading] = useState(false);
   const [booting, setBooting] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const nextMode = resolveMode(params.get("mode"));
-    setMode(nextMode);
-  }, []);
 
   useEffect(() => {
     let active = true;
@@ -53,90 +38,60 @@ export default function AuthPage() {
         if (!active) return;
         router.replace(ROUTES.dashboard);
       } catch {
-        if (!active) return;
-        setBooting(false);
+        if (active) setBooting(false);
       }
     }
     boot();
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [router]);
 
-  const title = useMemo(() => {
-    if (mode === MODE_REGISTER) return "Create account";
-    if (mode === MODE_VERIFY) return "Verify email";
-    return "Sign in";
-  }, [mode]);
-
-  function switchMode(nextMode) {
-    setMode(nextMode);
-    setError("");
-    setNotice("");
-    router.replace(`${ROUTES.auth}?mode=${nextMode}`, { scroll: false });
-  }
-
-  async function handleRegister(event) {
+  async function handleRequestCode(event) {
     event.preventDefault();
     if (loading) return;
     setLoading(true);
     setError("");
     setNotice("");
     try {
-      await registerWithEmail({ email, password });
-      setNotice("Verification code sent to your email.");
-      switchMode(MODE_VERIFY);
+      const data = await requestEmailCode(email);
+      setSession(data.session);
+      setNotice("A sign-in code has been sent to your email.");
+      setStep(STEP_CODE);
     } catch (err) {
-      setError(err.message || "Failed to register account");
+      setError(err.message || "Failed to send code. Please try again.");
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleVerify(event) {
+  async function handleVerifyCode(event) {
     event.preventDefault();
     if (loading) return;
     setLoading(true);
     setError("");
     setNotice("");
     try {
-      await confirmEmailCode({ email, code });
-      setNotice("Email verified. Please sign in.");
-      switchMode(MODE_LOGIN);
-    } catch (err) {
-      setError(err.message || "Failed to verify email");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleResendCode() {
-    if (!email || loading) return;
-    setLoading(true);
-    setError("");
-    setNotice("");
-    try {
-      await resendEmailCode({ email });
-      setNotice("Verification code resent.");
-    } catch (err) {
-      setError(err.message || "Failed to resend code");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleLogin(event) {
-    event.preventDefault();
-    if (loading) return;
-    setLoading(true);
-    setError("");
-    setNotice("");
-    try {
-      await loginWithEmail({ email, password });
-      await getCurrentUser();
+      const tokens = await verifyEmailCode(email, code, session);
+      saveAuthSession(tokens);
       router.replace(ROUTES.onboarding);
     } catch (err) {
-      setError(err.message || "Failed to sign in");
+      setError(err.message || "Invalid or expired code. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleResend() {
+    if (loading) return;
+    setLoading(true);
+    setError("");
+    setNotice("");
+    try {
+      const data = await requestEmailCode(email);
+      setSession(data.session);
+      setCode("");
+      setNotice("A new code has been sent to your email.");
+    } catch (err) {
+      setError(err.message || "Failed to resend code.");
     } finally {
       setLoading(false);
     }
@@ -153,13 +108,16 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen bg-background-light flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-[460px] rounded-3xl border border-slate-200 bg-white shadow-sm p-6 md:p-8 space-y-6">
+
         <div className="flex items-center gap-3">
           <div className="h-11 w-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-            <Icon name="lock" className="text-2xl" />
+            <Icon name={step === STEP_EMAIL ? "mail" : "pin"} className="text-2xl" />
           </div>
           <div>
-            <p className="text-xs uppercase tracking-widest text-slate-500">AWS Cognito</p>
-            <h1 className="text-2xl font-black tracking-tight">{title}</h1>
+            <p className="text-xs uppercase tracking-widest text-slate-500">Passwordless</p>
+            <h1 className="text-2xl font-black tracking-tight">
+              {step === STEP_EMAIL ? "Sign in" : "Enter code"}
+            </h1>
           </div>
         </div>
 
@@ -174,100 +132,75 @@ export default function AuthPage() {
           </div>
         )}
 
-        <form
-          onSubmit={
-            mode === MODE_REGISTER
-              ? handleRegister
-              : mode === MODE_VERIFY
-                ? handleVerify
-                : handleLogin
-          }
-          className="space-y-4"
-        >
-          <label className="block space-y-1.5">
-            <span className="text-sm font-semibold text-slate-700">Email</span>
-            <input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm"
-              placeholder="you@example.com"
-              required
-            />
-          </label>
-
-          {mode !== MODE_VERIFY && (
+        {step === STEP_EMAIL ? (
+          <form onSubmit={handleRequestCode} className="space-y-4">
             <label className="block space-y-1.5">
-              <span className="text-sm font-semibold text-slate-700">Password</span>
+              <span className="text-sm font-semibold text-slate-700">Email address</span>
               <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm"
-                placeholder="At least 8 characters"
-                minLength={8}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                placeholder="you@example.com"
+                autoComplete="email"
                 required
               />
             </label>
-          )}
-
-          {mode === MODE_VERIFY && (
+            <p className="text-xs text-slate-500">
+              New users are registered automatically. No password needed.
+            </p>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-xl bg-primary text-white font-bold py-3 disabled:opacity-60 transition-opacity"
+            >
+              {loading ? "Sending..." : "Send sign-in code"}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleVerifyCode} className="space-y-4">
+            <p className="text-sm text-slate-600">
+              Code sent to <span className="font-semibold">{email}</span>
+            </p>
             <label className="block space-y-1.5">
-              <span className="text-sm font-semibold text-slate-700">Verification code</span>
+              <span className="text-sm font-semibold text-slate-700">6-digit code</span>
               <input
                 type="text"
                 value={code}
-                onChange={(event) => setCode(event.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm"
-                placeholder="6-digit code"
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm tracking-widest text-center text-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
+                placeholder="000000"
+                inputMode="numeric"
+                autoComplete="one-time-code"
                 required
               />
             </label>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-xl bg-primary text-white font-bold py-3 disabled:opacity-60"
-          >
-            {loading
-              ? "Processing..."
-              : mode === MODE_REGISTER
-                ? "Create account"
-                : mode === MODE_VERIFY
-                  ? "Verify email"
-                  : "Sign in"}
-          </button>
-        </form>
-
-        {mode === MODE_VERIFY && (
-          <button
-            type="button"
-            onClick={handleResendCode}
-            disabled={loading || !email}
-            className="w-full rounded-xl border border-slate-200 bg-white font-semibold py-2.5 text-sm disabled:opacity-60"
-          >
-            Resend code
-          </button>
-        )}
-
-        <div className="text-sm text-slate-600 flex flex-wrap gap-2">
-          {mode !== MODE_LOGIN && (
-            <button type="button" className="text-primary font-semibold" onClick={() => switchMode(MODE_LOGIN)}>
-              Back to sign in
+            <button
+              type="submit"
+              disabled={loading || code.length < 6}
+              className="w-full rounded-xl bg-primary text-white font-bold py-3 disabled:opacity-60 transition-opacity"
+            >
+              {loading ? "Verifying..." : "Sign in"}
             </button>
-          )}
-          {mode === MODE_LOGIN && (
-            <>
-              <button type="button" className="text-primary font-semibold" onClick={() => switchMode(MODE_REGISTER)}>
-                Create account
+            <div className="flex items-center justify-between text-sm">
+              <button
+                type="button"
+                onClick={() => { setStep(STEP_EMAIL); setError(""); setNotice(""); setCode(""); }}
+                className="text-slate-500 hover:text-slate-700"
+              >
+                ← Change email
               </button>
-              <button type="button" className="text-primary font-semibold" onClick={() => switchMode(MODE_VERIFY)}>
-                Verify email
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={loading}
+                className="text-primary font-semibold disabled:opacity-60"
+              >
+                Resend code
               </button>
-            </>
-          )}
-        </div>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );

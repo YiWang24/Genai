@@ -63,6 +63,31 @@ class CognitoLoginRequest(BaseModel):
         return value.strip().lower()
 
 
+class OtpRequestSchema(BaseModel):
+    email: str = Field(..., min_length=5, max_length=320)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        return value.strip().lower()
+
+
+class OtpVerifyRequest(BaseModel):
+    email: str = Field(..., min_length=5, max_length=320)
+    code: str = Field(..., min_length=1, max_length=20)
+    session: str = Field(..., min_length=10)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        return value.strip().lower()
+
+    @field_validator("code")
+    @classmethod
+    def normalize_code(cls, value: str) -> str:
+        return value.strip()
+
+
 class CognitoRefreshRequest(BaseModel):
     refresh_token: str = Field(..., min_length=20)
     email: str | None = Field(default=None, min_length=5, max_length=320)

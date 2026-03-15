@@ -13,13 +13,17 @@ from app.schemas.auth import (
     CognitoRegisterResponse,
     CognitoResendCodeRequest,
     CognitoTokenResponse,
+    OtpRequestSchema,
+    OtpVerifyRequest,
 )
 from app.services.cognito_auth import (
     cognito_confirm_sign_up,
     cognito_login,
     cognito_refresh,
+    cognito_request_email_otp,
     cognito_resend_code,
     cognito_sign_up,
+    cognito_verify_email_otp,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -111,6 +115,33 @@ async def refresh_tokens(
         id_token=auth.get("IdToken"),
         access_token=auth.get("AccessToken"),
         refresh_token=payload.refresh_token,
+        token_type=auth.get("TokenType"),
+        expires_in=auth.get("ExpiresIn"),
+    )
+
+
+@router.post("/request-code")
+async def request_email_code(
+    payload: OtpRequestSchema,
+    settings: Settings = Depends(get_settings),
+) -> dict:
+    """Send an OTP to the email. Auto-registers new users silently."""
+    data = cognito_request_email_otp(payload.email, settings)
+    return {"session": data["session"], "challenge_name": data.get("challenge_name")}
+
+
+@router.post("/verify-code", response_model=CognitoTokenResponse)
+async def verify_email_code(
+    payload: OtpVerifyRequest,
+    settings: Settings = Depends(get_settings),
+) -> CognitoTokenResponse:
+    """Verify the OTP and return auth tokens."""
+    data = cognito_verify_email_otp(payload.email, payload.code, payload.session, settings)
+    auth = data.get("AuthenticationResult") or {}
+    return CognitoTokenResponse(
+        id_token=auth.get("IdToken"),
+        access_token=auth.get("AccessToken"),
+        refresh_token=auth.get("RefreshToken"),
         token_type=auth.get("TokenType"),
         expires_in=auth.get("ExpiresIn"),
     )

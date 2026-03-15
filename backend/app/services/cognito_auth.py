@@ -5,6 +5,8 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import secrets
+import string
 
 import httpx
 from fastapi import HTTPException, status
@@ -130,6 +132,76 @@ def cognito_login(email: str, password: str, settings: Settings) -> dict:
     if secret_hash:
         payload["AuthParameters"]["SECRET_HASH"] = secret_hash
     return _call_cognito("InitiateAuth", payload, settings)
+
+
+def _generate_secure_password() -> str:
+    """Generate a random password that meets Cognito complexity requirements."""
+    alphabet = string.ascii_letters + string.digits + "!@#$%"
+    while True:
+        pwd = "".join(secrets.choice(alphabet) for _ in range(24))
+        if (
+            any(c.isupper() for c in pwd)
+            and any(c.islower() for c in pwd)
+            and any(c.isdigit() for c in pwd)
+            and any(c in "!@#$%" for c in pwd)
+        ):
+            return pwd
+
+
+def cognito_request_email_otp(email: str, settings: Settings) -> dict:
+    """Auto-register new user if needed, then initiate EMAIL_OTP challenge."""
+    sign_up_payload: dict = {
+        "ClientId": settings.cognito_client_id,
+        "Username": email,
+        "Password": _generate_secure_password(),
+        "UserAttributes": [{"Name": "email", "Value": email}],
+    }
+    secret_hash = _secret_hash(email, settings)
+    if secret_hash:
+        sign_up_payload["SecretHash"] = secret_hash
+    try:
+        _call_cognito("SignUp", sign_up_payload, settings)
+    except HTTPException as exc:
+        if "UsernameExistsException" not in str(exc.detail):
+            raise
+
+    auth_params: dict = {
+        "USERNAME": email,
+        "PREFERRED_CHALLENGE": "EMAIL_OTP",
+    }
+    if secret_hash:
+        auth_params["SECRET_HASH"] = secret_hash
+    data = _call_cognito(
+        "InitiateAuth",
+        {
+            "ClientId": settings.cognito_client_id,
+            "AuthFlow": "USER_AUTH",
+            "AuthParameters": auth_params,
+        },
+        settings,
+    )
+    return {"session": data.get("Session"), "challenge_name": data.get("ChallengeName")}
+
+
+def cognito_verify_email_otp(email: str, code: str, session: str, settings: Settings) -> dict:
+    """Respond to EMAIL_OTP challenge and return Cognito tokens."""
+    challenge_responses: dict = {
+        "USERNAME": email,
+        "EMAIL_OTP_CODE": code,
+    }
+    secret_hash = _secret_hash(email, settings)
+    if secret_hash:
+        challenge_responses["SECRET_HASH"] = secret_hash
+    return _call_cognito(
+        "RespondToAuthChallenge",
+        {
+            "ClientId": settings.cognito_client_id,
+            "ChallengeName": "EMAIL_OTP",
+            "Session": session,
+            "ChallengeResponses": challenge_responses,
+        },
+        settings,
+    )
 
 
 def cognito_refresh(refresh_token: str, settings: Settings, email: str | None = None) -> dict:

@@ -162,6 +162,14 @@ async function request(path, { method = "GET", body, cache = "no-store" } = {}) 
   return payload;
 }
 
+export function requestEmailCode(email) {
+  return request("/auth/request-code", { method: "POST", body: { email } });
+}
+
+export function verifyEmailCode(email, code, session) {
+  return request("/auth/verify-code", { method: "POST", body: { email, code, session } });
+}
+
 export function registerWithEmail(payload) {
   return request("/auth/register", { method: "POST", body: payload });
 }
