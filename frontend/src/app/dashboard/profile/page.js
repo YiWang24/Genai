@@ -121,15 +121,15 @@ export default function ProfilePage() {
           <hr className="border-slate-200 dark:border-slate-700" />
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <p className="text-slate-500">Calories Target</p>
-              <p className="font-semibold">{goals?.calories_target ?? "-"}</p>
+              <p className="text-slate-500">Daily Target</p>
+              <p className="font-semibold">{goals?.calories_target ?? "-"} kcal</p>
             </div>
             <div>
               <p className="text-slate-500">Max Cook Time</p>
               <p className="font-semibold">{goals?.max_cook_time_minutes ?? "-"} min</p>
             </div>
             <div>
-              <p className="text-slate-500">Protein / Carbs / Fat</p>
+              <p className="text-slate-500">Macro Targets</p>
               <p className="font-semibold">
                 {goals?.protein_g_target ?? "-"} / {goals?.carbs_g_target ?? "-"} /{" "}
                 {goals?.fat_g_target ?? "-"} g
