@@ -181,6 +181,14 @@ async function request(path, { method = "GET", body, cache = "no-store" } = {}) 
     return null;
   }
 
+  if (response.status === 401) {
+    clearAuthSession();
+    if (typeof window !== "undefined") {
+      window.location.href = "/auth?mode=login&reason=session_expired";
+    }
+    throw new Error("Session expired. Please log in again.");
+  }
+
   const contentType = response.headers.get("content-type") || "";
   const payload = contentType.includes("application/json")
     ? await response.json().catch(() => null)

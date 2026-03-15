@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/ui/Icon";
+import { useToastFeedback } from "@/hooks/useToastFeedback";
 import {
   getCurrentUser,
   hasAuthSession,
@@ -25,6 +26,22 @@ export default function AuthPage() {
   const [booting, setBooting] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  useToastFeedback({
+    error,
+    clearError: () => setError(""),
+    notice,
+    clearNotice: () => setNotice(""),
+  });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("reason") === "session_expired") {
+        setNotice("Your session has expired. Please sign in again.");
+        setBooting(false);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -157,18 +174,6 @@ export default function AuthPage() {
               </h1>
             </div>
           </div>
-
-          {error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {error}
-            </div>
-          )}
-          {notice && (
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-              {notice}
-            </div>
-          )}
-
           {step === STEP_EMAIL ? (
             <form onSubmit={handleRequestCode} className="space-y-4">
               <label className="block space-y-1.5">
