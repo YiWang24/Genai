@@ -1,5 +1,5 @@
 export const metadata = {
-  title: "Fridge Scan - Agentic Dietitian",
+  title: "Fridge Scan - SmartDiet Copilot",
 };
 
 export default function FridgeScanLayout({ children }) {

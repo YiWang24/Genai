@@ -3,7 +3,7 @@ import Icon from "@/components/ui/Icon";
 import { APP_NAME } from "@/lib/constants";
 
 export const metadata = {
-  title: "Onboarding - Agentic Dietitian",
+  title: "Onboarding - SmartDiet Copilot",
 };
 
 export default function OnboardingLayout({ children }) {
@@ -45,7 +45,7 @@ export default function OnboardingLayout({ children }) {
         </main>
         <footer className="py-10 border-t border-primary/5 text-center">
           <p className="text-slate-400 text-sm">
-            © 2024 Agentic Dietitian AI. All rights reserved.
+            © 2024 SmartDiet Copilot. All rights reserved.
           </p>
         </footer>
       </div>

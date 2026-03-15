@@ -1,4 +1,4 @@
-export const APP_NAME = "Agentic Dietitian";
+export const APP_NAME = "SmartDiet Copilot";
 
 export const ROUTES = {
   home: "/",

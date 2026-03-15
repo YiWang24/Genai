@@ -7,7 +7,7 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: "Agentic Dietitian - AI-Powered Nutrition",
+  title: "SmartDiet Copilot - AI-Powered Nutrition",
   description:
     "Transform your ingredients into healthy, personalized meal plans with the power of agentic AI.",
 };
