@@ -111,3 +111,4 @@ class CognitoTokenResponse(BaseModel):
     refresh_token: str | None = None
     token_type: str | None = None
     expires_in: int | None = None
+    user_id: str | None = None

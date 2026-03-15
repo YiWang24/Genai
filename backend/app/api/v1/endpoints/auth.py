@@ -1,5 +1,8 @@
 """Authentication endpoints for Cognito integration."""
 
+import base64
+import json
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.core.config import Settings, get_settings
@@ -138,12 +141,27 @@ async def verify_email_code(
     """Verify the OTP and return auth tokens."""
     data = cognito_verify_email_otp(payload.email, payload.code, payload.session, settings)
     auth = data.get("AuthenticationResult") or {}
+    id_token = auth.get("IdToken")
+
+    # Decode the id_token without verification to extract sub (user_id).
+    # This saves the frontend from having to parse JWTs itself.
+    user_id: str | None = None
+    if id_token:
+        try:
+            parts = id_token.split(".")
+            padded = parts[1] + "=" * (4 - len(parts[1]) % 4)
+            claims = json.loads(base64.urlsafe_b64decode(padded))
+            user_id = claims.get("sub")
+        except Exception:
+            pass
+
     return CognitoTokenResponse(
-        id_token=auth.get("IdToken"),
+        id_token=id_token,
         access_token=auth.get("AccessToken"),
         refresh_token=auth.get("RefreshToken"),
         token_type=auth.get("TokenType"),
         expires_in=auth.get("ExpiresIn"),
+        user_id=user_id,
     )
 
 
