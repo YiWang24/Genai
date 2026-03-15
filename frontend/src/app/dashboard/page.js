@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import NutritionCard from "@/components/dashboard/NutritionCard";
 import QuickActions from "@/components/dashboard/QuickActions";
 import SmartSuggestion from "@/components/dashboard/SmartSuggestion";
@@ -9,6 +10,7 @@ import RecipeCard from "@/components/dashboard/RecipeCard";
 import EmptyState from "@/components/ui/EmptyState";
 import { ROUTES } from "@/lib/constants";
 import {
+  createRecommendation,
   getCurrentUserId,
   getGoals,
   getRecommendationHistory,
@@ -43,6 +45,7 @@ function toRecipeCard(bundle) {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const userId = getCurrentUserId();
   const [history, setHistory] = useState([]);
   const [goals, setGoals] = useState(null);
@@ -50,6 +53,7 @@ export default function DashboardPage() {
   const [todayNutrition, setTodayNutrition] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -80,6 +84,27 @@ export default function DashboardPage() {
       active = false;
     };
   }, [userId]);
+
+  async function handleGenerate() {
+    if (isGenerating || alerts.length === 0) return;
+    setIsGenerating(true);
+    setError("");
+    try {
+      const expiringNames = alerts
+        .slice(0, 3)
+        .map((a) => a.ingredient)
+        .join(", ");
+      const rec = await createRecommendation({
+        user_id: userId,
+        constraints: {},
+        user_message: `Please use these expiring ingredients: ${expiringNames}`,
+      });
+      router.push(`/dashboard/recipes/${rec.recommendation_id}`);
+    } catch (err) {
+      setError(err.message || "Failed to generate recipe. Please try again.");
+      setIsGenerating(false);
+    }
+  }
 
   const latest = history[0] || null;
   const cards = useMemo(() => history.map(toRecipeCard), [history]);
@@ -132,20 +157,6 @@ export default function DashboardPage() {
     },
   ];
 
-  const suggestionTitle =
-    alerts.length > 0
-      ? `${alerts[0].ingredient} expires in ${alerts[0].expires_in_days} day(s)`
-      : "No critical spoilage right now";
-  const suggestionDescription =
-    alerts.length > 0
-      ? "Generated from your pantry scan. Prioritize expiring ingredients to reduce waste."
-      : "Run a fridge scan to populate pantry freshness and auto-suggestions.";
-  const suggestionRecipes = cards.slice(0, 3).map((item) => ({
-    name: item.title,
-    icon: "restaurant_menu",
-    recommendationId: item.id,
-  }));
-
   return (
     <div className="mx-auto w-full max-w-[640px] flex flex-col gap-6">
       <section className="flex flex-col gap-2">
@@ -165,16 +176,11 @@ export default function DashboardPage() {
       )}
 
       <section className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold">Smart Suggestions</h2>
-          <Link href="/dashboard/recipes" className="text-sm font-medium text-primary hover:underline">
-            View All
-          </Link>
-        </div>
+        <h2 className="text-lg font-bold">Smart Suggestions</h2>
         <SmartSuggestion
-          title={suggestionTitle}
-          description={suggestionDescription}
-          recipes={suggestionRecipes.length ? suggestionRecipes : undefined}
+          alerts={alerts}
+          isGenerating={isGenerating}
+          onGenerate={handleGenerate}
         />
       </section>
 
