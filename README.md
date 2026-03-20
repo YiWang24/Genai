@@ -33,6 +33,17 @@ Instead of passive tracking, the agent generates **actionable meal plans and dec
 
 This repository is a backend-first MVP using FastAPI + Railtracks architecture. The agent combines multimodal perception, user memory, constraint solving, recipe retrieval, and reflection checks to produce grounded recommendations with grocery optimization.
 
+## Agent Orchestration Architecture
+
+**[👉 View Full Interactive Diagram](docs/architecture/agent-orchestration-architecture.html)**
+
+The architecture spans five layers:
+- **User Input Layer** — multimodal inputs (images, text, goals, pantry)
+- **Memory Injection Layer** — build-time context + post-plan + feedback signal updates
+- **Railtracks Workflow Nodes** — 7-step ReAct agent loop (Perceive → Prioritize → Retrieve → Query → Formulate → Reflect → Finalize)
+- **Tool & RAG Layer** — 9 function-calling tools + ChromaDB semantic retrieval pipeline
+- **Output Nodes** — structured `AgentPlanOutputV1` (meal plan, grocery gap, execution plan, reflection, memory updates)
+
 ## User Journey Map
 
 Sign Up and Set Goals -> Input Context -> Agent Loop -> Detailed Meal Plan Output -> User Feedback -> Agent Replans Automatically

@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartDiet-Copilot — Agent Orchestration Architecture</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d0d1a;
+      color: #e0e0f0;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-size: 13px;
+      padding: 32px 24px 48px;
+      min-width: 1100px;
+    }
+
+    /* ── Typography ── */
+    h1 {
+      text-align: center;
+      font-size: 22px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: .4px;
+      margin-bottom: 6px;
+    }
+    .subtitle {
+      text-align: center;
+      color: #8888aa;
+      font-size: 12px;
+      letter-spacing: .3px;
+      margin-bottom: 28px;
+    }
+
+    /* ── Shared section ── */
+    .section-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      color: #9090bb;
+    }
+    .section-label span { color: #c0c0e0; font-weight: 600; }
+
+    /* ── Arrow connector ── */
+    .arrow-down {
+      text-align: center;
+      color: #5555aa;
+      font-size: 18px;
+      line-height: 1;
+      margin: 8px 0;
+    }
+    .route-label {
+      text-align: center;
+      font-size: 10px;
+      color: #6666aa;
+      letter-spacing: .3px;
+      margin-bottom: 4px;
+    }
+
+    /* ── USER INPUT LAYER ── */
+    .user-input-layer {
+      text-align: center;
+      margin-bottom: 4px;
+    }
+    .input-pills {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .input-pill {
+      background: #1e1e3a;
+      border: 1px solid #333360;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 12px;
+      color: #c0c0e8;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .input-pill .icon { font-size: 15px; }
+
+    /* ── MEMORY INJECTION LAYER ── */
+    .memory-layer {
+      background: linear-gradient(135deg, #1a0a30 0%, #1a1040 100%);
+      border: 1px solid #5533aa44;
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin: 12px 0;
+      position: relative;
+    }
+    .memory-layer .section-label { color: #cc88ff; }
+    .memory-layer .section-label span { color: #aa66ee; }
+
+    .memory-columns {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 14px;
+      margin-top: 8px;
+    }
+    .memory-col {
+      background: #110820;
+      border: 1px solid #5533aa33;
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+    .memory-col h4 {
+      font-size: 11px;
+      font-weight: 700;
+      color: #bb88ff;
+      margin-bottom: 8px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #5533aa33;
+    }
+    .memory-col ul {
+      list-style: none;
+      padding: 0;
+    }
+    .memory-col ul li {
+      font-size: 11px;
+      color: #9090bb;
+      padding: 2px 0;
+      padding-left: 12px;
+      position: relative;
+    }
+    .memory-col ul li::before {
+      content: '›';
+      position: absolute;
+      left: 0;
+      color: #8844cc;
+    }
+
+    /* ── MAIN BODY (workflow + tools side by side) ── */
+    .main-body {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 16px;
+      margin: 4px 0;
+    }
+
+    /* ── WORKFLOW NODES ── */
+    .workflow-panel {
+      background: #0f1628;
+      border: 1px solid #223355;
+      border-radius: 12px;
+      padding: 16px 18px;
+    }
+    .workflow-panel .section-label { color: #66aaff; }
+    .workflow-panel .section-label span { color: #4488dd; }
+
+    .node {
+      background: #0d1f3c;
+      border: 1px solid #1e3a5f;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+      position: relative;
+    }
+    .node:last-child { margin-bottom: 0; }
+    .node-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .node-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .num-1 { background: #2244aa; color: #88bbff; }
+    .num-2 { background: #aa4400; color: #ffaa66; }
+    .num-3 { background: #226622; color: #88ee88; }
+    .num-4 { background: #664400; color: #ffcc66; }
+    .num-5 { background: #663366; color: #ee88ff; }
+    .num-6 { background: #882222; color: #ff8888; }
+    .num-7 { background: #224455; color: #88ccee; }
+
+    .node-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #ddeeff;
+      letter-spacing: .3px;
+    }
+    .node-subtitle {
+      font-size: 11px;
+      color: #8899bb;
+      margin-top: 2px;
+    }
+    .node-desc {
+      font-size: 11px;
+      color: #7788aa;
+      line-height: 1.5;
+      margin-bottom: 8px;
+    }
+    .node-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+    .tag {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+      letter-spacing: .2px;
+    }
+    .tag-blue   { background: #0e2a4a; color: #6699cc; border: 1px solid #1e4a7a; }
+    .tag-orange { background: #3a1a00; color: #cc8844; border: 1px solid #5a2a00; }
+    .tag-green  { background: #0a2a0a; color: #66aa66; border: 1px solid #1a4a1a; }
+    .tag-yellow { background: #2a2000; color: #aaaa44; border: 1px solid #4a3a00; }
+    .tag-purple { background: #2a0a3a; color: #aa66cc; border: 1px solid #4a1a6a; }
+    .tag-red    { background: #2a0a0a; color: #cc6666; border: 1px solid #4a1a1a; }
+    .tag-teal   { background: #0a2a2a; color: #44aaaa; border: 1px solid #1a4a4a; }
+
+    /* reflect loop note */
+    .reflect-loop-note {
+      background: #200808;
+      border: 1px solid #5a1a1a;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 10.5px;
+      color: #cc7777;
+      line-height: 1.5;
+      margin-top: 10px;
+    }
+    .reflect-loop-note strong { color: #ee9999; }
+
+    /* ── RIGHT PANELS (tools + RAG) ── */
+    .right-panels {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* ── TOOL LAYER ── */
+    .tool-panel {
+      background: #0d1f14;
+      border: 1px solid #1a3a22;
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+    .tool-panel .section-label { color: #66cc88; }
+    .tool-panel .section-label span { color: #44aa66; }
+
+    .tool-item {
+      background: #081808;
+      border: 1px solid #1a3a22;
+      border-radius: 7px;
+      padding: 8px 10px;
+      margin-bottom: 6px;
+    }
+    .tool-item:last-child { margin-bottom: 0; }
+    .tool-name {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #55cc77;
+      margin-bottom: 2px;
+    }
+    .tool-name::before { content: '⬛ '; font-size: 9px; }
+    .tool-desc {
+      font-size: 10px;
+      color: #6688aa;
+      line-height: 1.4;
+    }
+
+    /* ── RAG PIPELINE ── */
+    .rag-panel {
+      background: #1a180a;
+      border: 1px solid #3a3400;
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+    .rag-panel .section-label { color: #ddaa44; }
+    .rag-panel .section-label span { color: #bbaa22; }
+
+    .rag-step {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 8px;
+      align-items: flex-start;
+    }
+    .rag-step:last-child { margin-bottom: 0; }
+    .rag-num {
+      width: 18px;
+      height: 18px;
+      background: #2a2200;
+      border: 1px solid #4a3a00;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: #aaaa44;
+      flex-shrink: 0;
+    }
+    .rag-content { flex: 1; }
+    .rag-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #ccbb66;
+    }
+    .rag-desc {
+      font-size: 10px;
+      color: #7a7040;
+      line-height: 1.4;
+      margin-top: 1px;
+    }
+    .rag-fallback {
+      background: #2a2200;
+      border: 1px solid #4a3a00;
+      border-radius: 5px;
+      padding: 5px 8px;
+      font-size: 10px;
+      color: #aaaa44;
+      margin-top: 6px;
+      line-height: 1.4;
+    }
+
+    /* ── OUTPUT NODES ── */
+    .output-layer {
+      background: #0f1a10;
+      border: 1px solid #1a3a1a;
+      border-radius: 12px;
+      padding: 14px 20px;
+      margin-top: 12px;
+    }
+    .output-layer .section-label { color: #77cc77; }
+    .output-blocks {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .output-block {
+      background: #081808;
+      border: 1px solid #1a3a1a;
+      border-radius: 8px;
+      padding: 10px 12px;
+      text-align: center;
+    }
+    .output-block .ob-icon { font-size: 20px; margin-bottom: 5px; }
+    .output-block .ob-name {
+      font-size: 11px;
+      font-weight: 700;
+      color: #88cc88;
+      margin-bottom: 2px;
+    }
+    .output-block .ob-detail {
+      font-size: 9.5px;
+      color: #557755;
+      line-height: 1.4;
+    }
+
+    /* ── LEGEND ── */
+    .legend {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid #1a1a2a;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10px;
+      color: #6666aa;
+    }
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🥗 SmartDiet-Copilot — Agent Orchestration Architecture</h1>
+  <p class="subtitle">Backend Agentic Workflow · Railtracks Framework · Gemini 2.5 Pro · ChromaDB RAG</p>
+
+  <!-- USER INPUT LAYER -->
+  <div class="user-input-layer">
+    <div class="section-label">⬇ USER INPUT LAYER</div>
+    <div class="input-pills">
+      <div class="input-pill"><span class="icon">💬</span> Natural Language Message</div>
+      <div class="input-pill"><span class="icon">🍽</span> Fridge / Meal Photo</div>
+      <div class="input-pill"><span class="icon">🧾</span> Grocery Receipt Image</div>
+      <div class="input-pill"><span class="icon">🎯</span> Dietary Goals / Constraints</div>
+      <div class="input-pill"><span class="icon">🥫</span> Pantry Inventory</div>
+    </div>
+  </div>
+
+  <div class="arrow-down">⬇</div>
+  <div class="route-label">→ FastAPI /api/v1/planner → planner_context.build_effective_plan_request()</div>
+  <div class="arrow-down">⬇</div>
+
+  <!-- MEMORY INJECTION LAYER -->
+  <div class="memory-layer">
+    <div class="section-label">🧠 MEMORY INJECTION LAYER — <span>PLANNER_CONTEXT.PY · USER_MEMORY.PY</span></div>
+    <div class="memory-columns">
+      <div class="memory-col">
+        <h4>Layer 1 · Build-Time Injection</h4>
+        <ul>
+          <li>Load persisted dietary goals</li>
+          <li>Populate pantry inventory from DB</li>
+          <li>Inject historical meal logs</li>
+          <li>Inject recent history</li>
+          <li>Output complete PlanRequest object</li>
+        </ul>
+      </div>
+      <div class="memory-col">
+        <h4>Layer 2 · Post-Plan Update</h4>
+        <ul>
+          <li>Record money_saved estimate</li>
+          <li>Track food waste reduction metrics</li>
+          <li>Log co2e_kg_saved impact</li>
+          <li>Aggregate ingredient purchase frequency</li>
+          <li>Update favorite_recipes (max 20)</li>
+        </ul>
+      </div>
+      <div class="memory-col">
+        <h4>Layer 3 · Feedback Signal Update</h4>
+        <ul>
+          <li>User Accept / Reject actions</li>
+          <li>Update favorite_recipes list</li>
+          <li>Infer_used_inventory() inference</li>
+          <li>Count expiring ingredients used</li>
+          <li>Write back to UserMemoryProfile table</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow-down">⬇</div>
+  <div class="route-label">→ AgentPlanInputV1 (io_contracts.py) → standardized input contract</div>
+  <div class="arrow-down">⬇</div>
+
+  <!-- MAIN BODY -->
+  <div class="main-body">
+
+    <!-- WORKFLOW NODES -->
+    <div class="workflow-panel">
+      <div class="section-label">🔴 RAILTRACKS AGENT WORKFLOW NODES — <span>RT_WORKFLOW.PY</span></div>
+
+      <div class="node">
+        <div class="node-header">
+          <div class="node-num num-1">1</div>
+          <div>
+            <div class="node-title">PERCEIVE</div>
+          </div>
+        </div>
+        <div class="node-desc">Normalizes raw user input into a structured PlanRequest object. Invokes vision tools to parse images (fridge / meals / receipts) and extract structured inventory and constraint data.</div>
+        <div class="node-tags">
+          <span class="tag tag-blue">analyze_fridge_vision</span>
+          <span class="tag tag-blue">analyze_meal_vision</span>
+          <span class="tag tag-blue">parse_receipt_items</span>
+          <span class="tag tag-purple">Gemini Vision</span>
+        </div>
+      </div>
+
+      <div class="node">
+        <div class="node-header">
+          <div class="node-num num-2">2</div>
+          <div>
+            <div class="node-title">PRIORITIZE</div>
+          </div>
+        </div>
+        <div class="node-desc">Identifies ingredients expiring within 1–3 days and extracts hard constraints (allergens, dietary restrictions, budget, time limits). Generates spoilage_alerts for the planner.</div>
+        <div class="node-tags">
+          <span class="tag tag-orange">ConstraintParser</span>
+          <span class="tag tag-orange">Expiry Detection (&lt;3 days)</span>
+          <span class="tag tag-orange">Hard Constraint Extraction</span>
+        </div>
+      </div>
+
+      <div class="node">
+        <div class="node-header">
+          <div class="node-num num-3">3</div>
+          <div>
+            <div class="node-title">RETRIEVE · RAG Retrieval</div>
+          </div>
+        </div>
+        <div class="node-desc">Issues a semantic vector search against ChromaDB, prioritizing expiring ingredients. Builds a contextual search query incorporating dietary restrictions and returns the Top-K recipe candidates.</div>
+        <div class="node-tags">
+          <span class="tag tag-green">ChromaDB</span>
+          <span class="tag tag-green">gemini-embedding-001</span>
+          <span class="tag tag-green">_build_search_query()</span>
+          <span class="tag tag-green">retrieve_context()</span>
+        </div>
+      </div>
+
+      <div class="node">
+        <div class="node-header">
+          <div class="node-num num-4">4</div>
+          <div>
+            <div class="node-title">QUERY_RECIPE</div>
+          </div>
+        </div>
+        <div class="node-desc">Calls the retrieve_recipe_candidates tool to query TheMealDB API. Merges results with RAG candidates, scores and ranks recipes against inventory and constraints, and outputs the final candidate set.</div>
+        <div class="node-tags">
+          <span class="tag tag-yellow">retrieve_recipe_candidates</span>
+          <span class="tag tag-yellow">TheMealDB API</span>
+          <span class="tag tag-yellow">calculate_meal_macros</span>
+        </div>
+      </div>
+
+      <div class="node">
+        <div class="node-header">
+          <div class="node-num num-5">5</div>
+          <div>
+            <div class="node-title">FORMULATE_PLAN</div>
+          </div>
+        </div>
+        <div class="node-desc">The Railtracks Agent runs a ReAct loop, calling tools to produce a JSON-structured recommendation. Covers recipe selection, macronutrient breakdown, grocery gap, and cooking workflow decomposition.</div>
+        <div class="node-tags">
+          <span class="tag tag-purple">Gemini 2.5 Pro (LLM)</span>
+          <span class="tag tag-purple">generate_grocery_gap_tool</span>
+          <span class="tag tag-purple">decompose_cooking_workflow</span>
+          <span class="tag tag-purple">schedule_proactive_prep</span>
+        </div>
+      </div>
+
+      <div class="node">
+        <div class="node-header">
+          <div class="node-num num-6">6</div>
+          <div>
+            <div class="node-title">REFLECT_AND_RETRY</div>
+          </div>
+        </div>
+        <div class="node-desc">Validates LLM output against all constraints: allergen filtering, vegan/vegetarian keyword checks, budget and time limits. Retries with failure reason injected into the prompt — up to 3 attempts maximum.</div>
+        <div class="node-tags">
+          <span class="tag tag-red">reflection.py</span>
+          <span class="tag tag-red">max_retry = 3</span>
+          <span class="tag tag-red">Allergen Filter</span>
+          <span class="tag tag-red">Budget Check</span>
+        </div>
+      </div>
+
+      <div class="node">
+        <div class="node-header">
+          <div class="node-num num-7">7</div>
+          <div>
+            <div class="node-title">FINALIZE</div>
+          </div>
+        </div>
+        <div class="node-desc">Assembles AgentPlanOutputV1, calls sync_to_calendar to persist the execution plan, cooking tasks, and prep time windows to the database. Triggers memory layer updates.</div>
+        <div class="node-tags">
+          <span class="tag tag-teal">sync_to_calendar</span>
+          <span class="tag tag-teal">AgentPlanOutputV1</span>
+          <span class="tag tag-teal">update_memory_after_recommendations()</span>
+        </div>
+      </div>
+
+      <div class="reflect-loop-note">
+        <strong>↺ REFLECT_AND_RETRY Loop:</strong> If output violates a constraint → re-invoke FORMULATE_PLAN with the failure reason appended → retry up to 3 times → gracefully degrade to a partial result if limit is exceeded.
+      </div>
+    </div>
+
+    <!-- RIGHT PANELS -->
+    <div class="right-panels">
+
+      <!-- TOOL LAYER -->
+      <div class="tool-panel">
+        <div class="section-label">🟩 TOOL LAYER — <span>TOOLS.PY</span></div>
+
+        <div class="tool-item">
+          <div class="tool-name">analyze_fridge_vision</div>
+          <div class="tool-desc">Gemini Vision parses fridge photo → structured ingredient inventory</div>
+        </div>
+        <div class="tool-item">
+          <div class="tool-name">analyze_meal_vision</div>
+          <div class="tool-desc">Recognizes meal from image → estimates calories / protein / carbs / fat</div>
+        </div>
+        <div class="tool-item">
+          <div class="tool-name">parse_receipt_items</div>
+          <div class="tool-desc">Parses grocery receipts → extracts ingredient list</div>
+        </div>
+        <div class="tool-item">
+          <div class="tool-name">retrieve_recipe_candidates</div>
+          <div class="tool-desc">Queries TheMealDB API by inventory &amp; constraints, returns ranked recipes</div>
+        </div>
+        <div class="tool-item">
+          <div class="tool-name">calculate_meal_macros</div>
+          <div class="tool-desc">Estimates macronutrient values for candidate recipes</div>
+        </div>
+        <div class="tool-item">
+          <div class="tool-name">generate_grocery_gap_tool</div>
+          <div class="tool-desc">Compares pantry vs. recipe needs → produces shopping gap list</div>
+        </div>
+        <div class="tool-item">
+          <div class="tool-name">decompose_cooking_workflow</div>
+          <div class="tool-desc">Breaks recipe steps into a task-oriented Acyclic Graph of tasks</div>
+        </div>
+        <div class="tool-item">
+          <div class="tool-name">schedule_proactive_prep</div>
+          <div class="tool-desc">Allocates DAG prep windows across the user's calendar availability</div>
+        </div>
+        <div class="tool-item">
+          <div class="tool-name">sync_to_calendar</div>
+          <div class="tool-desc">Persists execution plan / cooking tasks / prep windows to database</div>
+        </div>
+      </div>
+
+      <!-- RAG PIPELINE -->
+      <div class="rag-panel">
+        <div class="section-label">🟨 RAG PIPELINE — <span>RAG_PIPELINE.PY · RT_CONFIG.PY</span></div>
+
+        <div class="rag-step">
+          <div class="rag-num">1</div>
+          <div class="rag-content">
+            <div class="rag-title">Index Build — _index_recipes()</div>
+            <div class="rag-desc">Recipe title + category + area + ingredients + tags + truncated instructions (4500 chars) concatenated into documents, upserted as Chunk objects into ChromaDB</div>
+          </div>
+        </div>
+        <div class="rag-step">
+          <div class="rag-num">2</div>
+          <div class="rag-content">
+            <div class="rag-title">Query Build — _build_search_query()</div>
+            <div class="rag-desc">Prioritize expiring items (&lt;3 days) → expand to full inventory → append dietary restrictions → construct semantic search prompt</div>
+          </div>
+        </div>
+        <div class="rag-step">
+          <div class="rag-num">3</div>
+          <div class="rag-content">
+            <div class="rag-title">Vector Search — retrieve_context()</div>
+            <div class="rag-desc">ChromaDB semantic search via Gemini Embedding (gemini-embedding-001), compute distance-based relevance scores, return Top-K candidates</div>
+          </div>
+        </div>
+        <div class="rag-step">
+          <div class="rag-num">4</div>
+          <div class="rag-content">
+            <div class="rag-title">LLM Context Injection</div>
+            <div class="rag-desc">Ranked recipe chunks injected as Grounding Context to Gemini 2.5 Pro, augmenting the quality of generated recommendations</div>
+          </div>
+        </div>
+
+        <div class="rag-fallback">
+          ✦ <strong>Fallback:</strong> If vector search fails → invoke keyword_retrieve() → delegate to TheMealDB API keyword matching
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- OUTPUT NODES -->
+  <div class="output-layer">
+    <div class="section-label">⬇ OUTPUT NODES — <span>AGENTPLANOUTPUTV1 (IO_CONTRACTS.PY)</span></div>
+    <div class="output-blocks">
+      <div class="output-block">
+        <div class="ob-icon">🍽</div>
+        <div class="ob-name">MealPlanBlock</div>
+        <div class="ob-detail">Recipe plans<br>Substitutions</div>
+      </div>
+      <div class="output-block">
+        <div class="ob-icon">🛒</div>
+        <div class="ob-name">GroceryPlanBlock</div>
+        <div class="ob-detail">Cooking list<br>Gap analysis</div>
+      </div>
+      <div class="output-block">
+        <div class="ob-icon">📅</div>
+        <div class="ob-name">ExecutionPlanBlock</div>
+        <div class="ob-detail">Cooking tasks<br>Prep windows</div>
+      </div>
+      <div class="output-block">
+        <div class="ob-icon">🔄</div>
+        <div class="ob-name">ReflectionBlock</div>
+        <div class="ob-detail">Constraint status<br>Confidence score</div>
+      </div>
+      <div class="output-block">
+        <div class="ob-icon">🧠</div>
+        <div class="ob-name">MemoryUpdatesBlock</div>
+        <div class="ob-detail">Memory writes<br>Metrics update</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEGEND -->
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#2244aa"></div> Perception / Input Node</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#aa4400"></div> Constraint Analysis Node</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#226622"></div> RAG Retrieval Node</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#664400"></div> Tool Invocation Node</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#663366"></div> LLM Generation Node</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#882222"></div> Reflection / Retry Node</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#224455"></div> Output / Persistence Node</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#5533aa"></div> Memory Injection Layer</div>
+  </div>
+
+</body>
+</html>
