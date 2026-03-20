@@ -36,6 +36,7 @@ This repository is a backend-first MVP using FastAPI + Railtracks architecture. 
 ## Agent Orchestration Architecture
 
 **[👉 View Full Interactive Diagram](docs/architecture/agent-orchestration-architecture.html)**
+![Screenshot_19-3-2026_201637_](https://github.com/user-attachments/assets/f41f4653-5e69-4655-819e-3654dbfbbc81)
 
 The architecture spans five layers:
 - **User Input Layer** — multimodal inputs (images, text, goals, pantry)
